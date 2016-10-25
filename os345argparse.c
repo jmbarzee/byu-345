@@ -24,24 +24,8 @@
  *		WS	=> \s | \n | \r | \t | \v | \f
  */
 
-//uncomment to debug parser
-void parserDebugPrint(char type, char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-	if (type == 'f') {
-		//vprintf(fmt, args);		//print function names
-	} else if (type == 'p') {
-		//vprintf(fmt, args);	//print push/pop
-	} else if (type == 'm') {
-		//vprintf(fmt, args);	//print mallocs
-	} else {
-		//vprintf(fmt, args);	//print all else
-	}
-    va_end(args);
-}
-
 ParsedLine parseArgs(char* buffer) {
-	parserDebugPrint('f', "parseArgs()\n");
+	debugPrint('p', 'f', "parseArgs()\n");
 	bufferContents = buffer;
 	nextCharPos = 0;
 
@@ -53,18 +37,18 @@ ParsedLine parseArgs(char* buffer) {
 	line.runInBackground = FALSE;
 
 	int errors = parseLine(&line.argc, line.argv, &line.runInBackground);
-	//printf( "finished parsing. errors:%d\n", errors );
+	debugPrint('p', 'e', "finished parsing. errors:%d\n", errors );
 
 
 	return line;
 }
 
 int parseLine(int* newArgc, char** newArgv, bool* background) {
-	parserDebugPrint('f', "parseLine()\n");
+	debugPrint('p', 'f', "parseLine()\n");
 	int errors = 0;
 	while(peekChar() && peekChar() != '&') {
-		errors += parseArg(newArgc, newArgv);
 		errors += parseWhiteSpace(newArgc, newArgv);
+		errors += parseArg(newArgc, newArgv);
 	}
 	errors += parseAmpersand(background);
 	errors += parseWhiteSpace(newArgc, newArgv);
@@ -74,7 +58,7 @@ int parseLine(int* newArgc, char** newArgv, bool* background) {
 }
 
 int parseArg(int* newArgc, char** newArgv) {
-	parserDebugPrint('f', "parseArg()\n");
+	debugPrint('p', 'f', "parseArg()\n");
 	if (isQuote(peekChar())) {
 		return parseQuotedString(newArgc, newArgv);
 	} else {
@@ -83,7 +67,7 @@ int parseArg(int* newArgc, char** newArgv) {
 }
 
 int parseQuotedString(int* newArgc, char** newArgv) {
-	parserDebugPrint('f', "parseQuotedString()\n");
+	debugPrint('p', 'f', "parseQuotedString()\n");
 	if (!isQuote(peekChar())) {
 		return 1;
 	} else {
@@ -100,7 +84,7 @@ int parseQuotedString(int* newArgc, char** newArgv) {
 }
 
 int parseQuoteDelimitedString(int* newArgc, char** newArgv) {
-	parserDebugPrint('f', "parseQuoteDelimitedString()\n");
+	debugPrint('p', 'f', "parseQuoteDelimitedString()\n");
 	char arg[MAX_ARG_LEN] = "";
 	char nextChar;
 	while (peekChar() != '\0') {
@@ -111,17 +95,18 @@ int parseQuoteDelimitedString(int* newArgc, char** newArgv) {
 		} else if (isQuote(nextChar)) {
 			newArgv[(*newArgc)] = malloc((strlen(arg)+1) * sizeof(char));
 			strcpy(newArgv[(*newArgc)], arg);
-			parserDebugPrint('m', "malloced Arg %s\n", newArgv[(*newArgc)]);
+			debugPrint('p', 'm', "malloced Arg %s\n", newArgv[(*newArgc)]);
 			(*newArgc)++;
 			return 0;
 		} else {
 			return 1;
 		}
 	}
+	return 1;
 }
 
 int parseString(int* newArgc, char** newArgv) {
-	parserDebugPrint('f', "parseString()\n");
+	debugPrint('p', 'f', "parseString()\n");
 	char arg[MAX_ARG_LEN] = "";
 	char nextChar;
 	while (1) {
@@ -129,10 +114,10 @@ int parseString(int* newArgc, char** newArgv) {
 		if (isStringChar(nextChar)) {
 			nextChar = tolower(popChar());
 			strncat(arg, &nextChar, 1);   //append the new char
-		} else if (isspace(nextChar) || nextChar == '\0') {
+		} else if (isspace(nextChar) || nextChar == '\0' || nextChar == '&') {
 			newArgv[(*newArgc)] = malloc((strlen(arg)+1) * sizeof(char));
 			strcpy(newArgv[(*newArgc)], arg);
-			parserDebugPrint('m', "malloced Arg %s\n", newArgv[(*newArgc)]);
+			debugPrint('p', 'm', "malloced Arg %s\n", newArgv[(*newArgc)]);
 			(*newArgc)++;
 			return 0;
 		} else {
@@ -142,14 +127,14 @@ int parseString(int* newArgc, char** newArgv) {
 }
 
 int parseWhiteSpace(int* newArgc, char** newArgv) {
-	parserDebugPrint('f', "parsewhiteSpace()\n");
+	debugPrint('p', 'f', "parsewhiteSpace()\n");
 	while(isspace(peekChar())) {
 		popChar();
 	}
 }
 
 int parseAmpersand(bool* background) {
-	parserDebugPrint('f', "parseAmpersand()\n");
+	debugPrint('p', 'f', "parseAmpersand()\n");
 	if (peekChar() != '&') {
 		return 0;
 	} else {
@@ -161,12 +146,12 @@ int parseAmpersand(bool* background) {
 
 
 char peekChar() {
-	parserDebugPrint('p', "peeked %c\n", bufferContents[nextCharPos]);
+	debugPrint('p', 'p', "peeked %c\n", bufferContents[nextCharPos]);
 	return bufferContents[nextCharPos];
 }
 
 char popChar() {
-	parserDebugPrint('p', "popped %c\n", bufferContents[nextCharPos]);
+	debugPrint('p', 'p', "popped %c\n", bufferContents[nextCharPos]);
 	if (bufferContents[nextCharPos])
 		nextCharPos++;
 	return bufferContents[nextCharPos-1];
@@ -174,6 +159,8 @@ char popChar() {
 
 bool isStringChar(char c) {
 	if (isalpha(c)) {
+		return 1;
+	} else if (isdigit(c)) {
 		return 1;
 	} else if (c == '.') {
 		return 1;

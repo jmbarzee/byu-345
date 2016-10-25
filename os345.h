@@ -91,11 +91,11 @@ typedef struct							// task control block
 	int argc;							// task argument count (project 1)
 	char** argv;						// task argument pointers (project 1)
 	int signal;							// task signals (project 1)
-//	void (*sigContHandler)(void);	// task mySIGCONT handler
+	void (*sigContHandler)(void);	// task mySIGCONT handler
 	void (*sigIntHandler)(void);	// task mySIGINT handler
-//	void (*sigKillHandler)(void);	// task mySIGKILL handler
-//	void (*sigTermHandler)(void);	// task mySIGTERM handler
-//	void (*sigTstpHandler)(void);	// task mySIGTSTP handler
+	void (*sigKillHandler)(void);	// task mySIGKILL handler
+	void (*sigTermHandler)(void);	// task mySIGTERM handler
+	void (*sigTstpHandler)(void);	// task mySIGTSTP handler
 	TID parent;							// task parent
 	int RPT;								// task root page table (project 5)
 	int cdir;							// task directory (project 6)
@@ -157,7 +157,7 @@ int semTryLock(Semaphore*);
 // ***********************************************************************
 // Command prototypes
 
-#define NUM_COMMANDS 49
+#define NUM_COMMANDS 51
 typedef struct								// command struct
 {
 	char* command;
@@ -169,6 +169,8 @@ typedef struct								// command struct
 int P1_shellTask(int, char**);
 
 int P1_project1(int, char**);
+int P1_args(int, char**);
+int P1_add(int, char**);
 int P1_help(int, char**);
 int P1_quit(int, char**);
 int P1_lc3(int, char**);
@@ -232,5 +234,16 @@ void outPTE(char* s, int pte);
 int accessPage(int pnum, int frame, int rwnFlg);
 void initLC3Memory(int startFrame, int endFrame);
 int lc3Task(int, char**);
+
+void debugPrint(char category, char type, char* fmt, ...);
+
+extern bool printParser;
+extern bool printParserReads;
+extern bool printInterrupts;
+extern bool printInterruptKeystrokes;
+
+extern bool printfnNames;
+extern bool printMallocs;
+extern bool printErrors;
 
 #endif // __os345_h__

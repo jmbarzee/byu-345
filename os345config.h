@@ -3,7 +3,7 @@
 #define __os345config_h__
 // ***********************************************************************
 //
-#define STARTUP_MSG	"CS345 W2016"
+#define STARTUP_MSG	"CS345 W2016\n"
 
 // ***********************************************************************
 // Select development system environment here:

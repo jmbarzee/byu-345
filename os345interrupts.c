@@ -90,50 +90,50 @@ void pollInterrupts(void)
 //
 static void keyboard_isr()
 {
+	debugPrint('i', 'f', "key_board\n");
 	// assert system mode
 	assert("keyboard_isr Error" && superMode);
 
 	semSignal(charReady);					// SIGNAL(charReady) (No Swap)
 	if (charFlag == 0)
 	{
+		debugPrint('i', 'k', "char -  %04x, %c\n", inChar, inChar);
 		switch (inChar)
 		{
 			case '\r':
 			case '\n':
 			{
+				debugPrint('i', 'r', "respond - newline\n");
 				inBufIndx = 0;				// EOL, signal line ready
 				semSignal(inBufferReady);	// SIGNAL(inBufferReady)
 				break;
 			}
 			case 0x12:						// ^r
 			{
-				inBufIndx = 0;
-				inBuffer[0] = 0;
-				sigSignal(-1, mySIGCONT);		// interrupt task 0
-				semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
+				debugPrint('i', 'r', "respond - ctrl+r\n");
+				sigSignal(-1, mySIGCONT);	// resume all tasks
 				break;
 			}
 			case 0x17:						// ^w
 			{
-				inBufIndx = 0;
-				inBuffer[0] = 0;
+				debugPrint('i', 'r', "respond - ctrl+w\n");
 				sigSignal(-1, mySIGTSTP);	// pause all tasks
-				semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
 				break;
 			}
 			case 0x18:						// ^x
 			{
+				debugPrint('i', 'r', "respond - ctrl+x\n");
 				inBufIndx = 0;
 				inBuffer[0] = 0;
-				sigSignal(0, mySIGINT);	// resume all tasks
+				sigSignal(0, mySIGINT);		// resume all tasks
 				semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
 				break;
 			}
 			default:
 			{
+				debugPrint('i', 'r', "respond - default\n");
 				inBuffer[inBufIndx++] = inChar;
 				inBuffer[inBufIndx] = 0;
-				//printf("%c", inChar);		// echo character
 			}
 		}
 	}

@@ -112,6 +112,7 @@ int main(int argc, char* argv[])
 		case POWER_DOWN_RESTART:			// restart
 			powerDown(resetCode);
 			printf("\nRestarting system...\n");
+			break;
 
 		case POWER_UP:						// startup
 			break;
@@ -121,9 +122,62 @@ int main(int argc, char* argv[])
 			powerDown(resetCode);
 			return resetCode;
 	}
-
 	// output header message
 	printf("%s", STARTUP_MSG);
+
+	for (int i=0; i<argc; i++) {
+		int j = 0;
+		char flag;
+		if (argv[i][j++] == '-') {
+			while ((flag = argv[i][j]) != '\0') {
+				j++;
+				switch (flag) {
+					case 'p': {
+						printParser = 1;		// -p
+						break;
+					}
+					case 'r': {
+						printParserReads = 1;	// -r
+						printParser = 1;		// -p	(inherited)
+						break;
+					}
+					case 'i': {
+						printInterrupts = 1;		// -i
+						break;
+					}
+					case 'k': {
+						printInterruptKeystrokes = 1; // -k
+						printInterrupts = 1;		// -i	(inherited)
+						break;
+					}
+					case 'f': {
+						printfnNames = 1;		// -f
+						break;
+					}
+					case 'm': {
+						printMallocs = 1;		// -m
+						break;
+					}
+					case 'e': {
+						printErrors = 1;		// -e
+						break;
+					}
+					default: {
+
+					}
+				}
+			}
+		}
+	}
+	printf("flags p%i, r%i, i%i, k%i, f%i, m%i, e%i\n",
+			printParser,
+			printParserReads,
+			printInterrupts,
+			printInterruptKeystrokes,
+			printfnNames,
+			printMallocs,
+			printErrors);
+
 
 	// initalize OS
 	if ( resetCode = initOS()) return resetCode;

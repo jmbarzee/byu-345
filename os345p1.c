@@ -77,7 +77,7 @@ int P1_shellTask(int argc, char* argv[])
 	// initialize shell commands
 	commands = P1_init();					// init shell commands
 
-	sigAction(mySigIntHandler, mySIGINT);
+	//sigAction(mySigIntHandler, mySIGINT);
 
 
 	while (1)
@@ -97,8 +97,8 @@ int P1_shellTask(int argc, char* argv[])
 		newArgv = pline.argv;
 		runInBack = pline.runInBackground;
 
-		for (i=0; i<newArgc; i++)
-			printf( "Arg = %s\n", newArgv[i]);
+		/*for (i=0; i<newArgc; i++)
+			printf( "Arg = %s\n", newArgv[i]);*/
 
 		// look for command
 		found = FALSE;
@@ -163,7 +163,19 @@ int P1_project1(int argc, char* argv[])
 	return 0;
 } // end P1_project1
 
+int P1_args(int argc, char* argv[])
+{
+	for (int i=0; i<argc; i++)
+		printf( "Arg%i = %s\n",i , argv[i]);
+	return 0;
+} // end P1_args
 
+int P1_add(int argc, char* argv[])
+{
+	for (int i=0; i<argc; i++)
+		printf( "add, Arg = %s\n", argv[i]);
+	return 0;
+} // end P1_add
 
 // ***********************************************************************
 // ***********************************************************************
@@ -195,6 +207,7 @@ int P1_quit(int argc, char* argv[])
 //
 int P1_lc3(int argc, char* argv[])
 {
+	printf("P1_lc3");
 	strcpy (argv[0], "0");
 	return lc3Task(argc, argv);
 } // end P1_lc3
@@ -262,6 +275,9 @@ Command** P1_init()
 	commands[i++] = newCommand("project1", "p1", P1_project1, "P1: Shell");
 	commands[i++] = newCommand("help", "he", P1_help, "OS345 Help");
 	commands[i++] = newCommand("lc3", "lc3", P1_lc3, "Execute LC3 program");
+
+	commands[i++] = newCommand("args", "a", P1_args, "Print given Args");
+	commands[i++] = newCommand("add", "ad", P1_add, "Add all Args");
 
 	// P2: Tasking
 	commands[i++] = newCommand("project2", "p2", P2_project2, "P2: Tasking");
