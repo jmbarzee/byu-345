@@ -13,8 +13,6 @@
 #define mySIGTSTP			0x0010
 #define mySIGSTOP			0x8000
 
-int sigAction(void (*sigHandler)(void), int sig);
-int sigSignal(int taskId, int sig);
 
 int sigSignal(int taskId, int sig);
 int sigAction(void (*sigHandler)(void), int sig);

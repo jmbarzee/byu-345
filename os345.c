@@ -112,7 +112,6 @@ int main(int argc, char* argv[])
 		case POWER_DOWN_RESTART:			// restart
 			powerDown(resetCode);
 			printf("\nRestarting system...\n");
-			break;
 
 		case POWER_UP:						// startup
 			break;
@@ -150,6 +149,10 @@ int main(int argc, char* argv[])
 						printInterrupts = 1;		// -i	(inherited)
 						break;
 					}
+					case 's': {
+						printSignals = 1;		// -s
+						break;
+					}
 					case 'f': {
 						printfnNames = 1;		// -f
 						break;
@@ -169,11 +172,12 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-	printf("flags p%i, r%i, i%i, k%i, f%i, m%i, e%i\n",
+	printf("flags p%i, r%i, i%i, k%i, s%i, f%i, m%i, e%i\n",
 			printParser,
 			printParserReads,
 			printInterrupts,
 			printInterruptKeystrokes,
+			printSignals,
 			printfnNames,
 			printMallocs,
 			printErrors);

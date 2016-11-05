@@ -5,8 +5,10 @@
 #ifndef __os345_h__
 #define __os345_h__
 
-
 #include <setjmp.h>
+
+#include "pqueue.h"
+
 // ***********************************************************************
 // ***********************************************************************
 // Context switching directives
@@ -241,6 +243,7 @@ extern bool printParser;
 extern bool printParserReads;
 extern bool printInterrupts;
 extern bool printInterruptKeystrokes;
+extern bool printSignals;
 
 extern bool printfnNames;
 extern bool printMallocs;

@@ -8,7 +8,7 @@
 #ifndef OS345ARGPARSE_H_
 #define OS345ARGPARSE_H_
 
-#define MAX_ARG_LEN		50
+#define MAX_ARG_LEN		256
 
 char* bufferContents;
 int nextCharPos;
@@ -17,6 +17,7 @@ typedef struct {
 	int argc;
 	char** argv;
 	bool runInBackground;
+	int errors;
 } ParsedLine;
 
 ParsedLine parseArgs(char* buffer);
@@ -36,6 +37,6 @@ char popChar();
 bool isStringChar(char c);
 bool isQuote(char c);
 
-void parserDebugPrint(char type, char* s, ...);
+int parseNum(char* str);
 
 #endif /* OS345ARGPARSE_H_ */

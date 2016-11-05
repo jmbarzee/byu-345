@@ -13,6 +13,7 @@ bool printParser = 0;		// -p
 bool printParserReads = 0;	// -r
 bool printInterrupts = 0;	// -i
 bool printInterruptKeystrokes = 0;// -k
+bool printSignals = 0;		// -s
 
 bool printfnNames = 0;		// -f
 bool printMallocs = 0;		// -m
@@ -33,6 +34,8 @@ void debugPrint(char category, char type, char* fmt, ...) {
     	} else {
     		vprintf(fmt, args);		//print interrupts details
     	}
+    } else if (category == 's' && printSignals) {
+    	vprintf(fmt, args);		//print Signals
     } else if (type == 'f' && printfnNames) {
 		vprintf(fmt, args);		//print function names
 	} else if (type == 'm' && printMallocs) {

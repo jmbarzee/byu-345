@@ -104,6 +104,7 @@ static void keyboard_isr()
 			case '\n':
 			{
 				debugPrint('i', 'r', "respond - newline\n");
+				printf("%c", inChar);
 				inBufIndx = 0;				// EOL, signal line ready
 				semSignal(inBufferReady);	// SIGNAL(inBufferReady)
 				break;
@@ -111,6 +112,8 @@ static void keyboard_isr()
 			case 0x12:						// ^r
 			{
 				debugPrint('i', 'r', "respond - ctrl+r\n");
+				clearSignal(-1, mySIGTSTP);
+				clearSignal(-1, mySIGSTOP);
 				sigSignal(-1, mySIGCONT);	// resume all tasks
 				break;
 			}
@@ -125,15 +128,29 @@ static void keyboard_isr()
 				debugPrint('i', 'r', "respond - ctrl+x\n");
 				inBufIndx = 0;
 				inBuffer[0] = 0;
-				sigSignal(0, mySIGINT);		// resume all tasks
+				sigSignal(0, mySIGINT);		// halt all tasks
 				semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
+				break;
+			}
+			case 0x7f:						// ^x
+			{
+				debugPrint('i', 'r', "respond - backspace\n");
+				if (inBufIndx > 0) {
+					printf("\b \b");
+					inBuffer[inBufIndx--] = '\0';
+				}
 				break;
 			}
 			default:
 			{
-				debugPrint('i', 'r', "respond - default\n");
-				inBuffer[inBufIndx++] = inChar;
-				inBuffer[inBufIndx] = 0;
+				if (inBufIndx < INBUF_SIZE - 1) {
+					debugPrint('i', 'r', "respond - default\n");
+					printf("%c", inChar);
+					inBuffer[inBufIndx++] = inChar;
+					inBuffer[inBufIndx] = 0;
+				} else {
+					printf("\a");
+				}
 			}
 		}
 	}

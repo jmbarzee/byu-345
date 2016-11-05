@@ -166,16 +166,19 @@ int P1_project1(int argc, char* argv[])
 int P1_args(int argc, char* argv[])
 {
 	for (int i=0; i<argc; i++)
-		printf( "Arg%i = %s\n",i , argv[i]);
+		printf( "Arg[%i] = %s\n",i , argv[i]);
 	return 0;
 } // end P1_args
 
 int P1_add(int argc, char* argv[])
 {
-	for (int i=0; i<argc; i++)
-		printf( "add, Arg = %s\n", argv[i]);
+	int total = 0;
+	for (int i=1; i<argc; i++)
+		total += parseNum(argv[i]);
+	printf("total = %i\n", total);
 	return 0;
 } // end P1_add
+
 
 // ***********************************************************************
 // ***********************************************************************

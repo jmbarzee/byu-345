@@ -16,7 +16,7 @@
 /* This library will parse a argument command line.
  *		LANGUAGE:
  *
- *		LINE=> (ARG WS)* &
+ *		LINE=> (WS ARG)*&
  *		ARG	=> S | QS
  *		QS	=> 'QDS' | "QDS"
  *		QDS	=> a-z | A-Z | . | :			NOTE: case sensitive and quote delimited
@@ -36,8 +36,8 @@ ParsedLine parseArgs(char* buffer) {
 	for (int i=1; i<MAX_ARGS; i++) line.argv[i] = NULL;
 	line.runInBackground = FALSE;
 
-	int errors = parseLine(&line.argc, line.argv, &line.runInBackground);
-	debugPrint('p', 'e', "finished parsing. errors:%d\n", errors );
+	line.errors = parseLine(&line.argc, line.argv, &line.runInBackground);
+	debugPrint('p', 'e', "finished parsing. errors:%d\n", line.errors );
 
 
 	return line;
@@ -131,6 +131,7 @@ int parseWhiteSpace(int* newArgc, char** newArgv) {
 	while(isspace(peekChar())) {
 		popChar();
 	}
+	return 0;
 }
 
 int parseAmpersand(bool* background) {
@@ -166,15 +167,48 @@ bool isStringChar(char c) {
 		return 1;
 	} else if (c == ':') {
 		return 1;
+	} else if (isspace(c)) {
+		return 0;
+	} else if (c == '\0') {
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
 bool isQuote(char c) {
 	if (c == '\'') {
-		return 1;
+		return 0;
 	} else if (c == '"') {
 		return 1;
 	}
 	return 0;
+}
+
+/* format:
+ *  2x..	binary
+ *  8x..	octal
+ *  0x..	hex
+ *    ..	decimal
+ */
+
+int parseNum(char* str) {
+	int num;
+	char* waste = NULL;
+	char c = str[0];
+	if (isdigit(c) && str[1] == 'x') {	// look for escape sequence
+		if (c == '2') {
+			num = strtol(&str[2], &waste, 2);
+		} else if (c == '8') {
+			num = strtol(&str[2], &waste, 8);
+		} else if (c == '0') {
+			num = strtol(&str[2], &waste, 16);
+		}
+	} else {
+		num = strtol(str, &waste, 10);
+	}
+	if ((*waste)!= '\0') {
+		printf("%s is not a number\n", waste);
+		num = 0;
+	}
+	return num;
 }
