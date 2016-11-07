@@ -23,18 +23,22 @@
 #include <setjmp.h>
 #include <time.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "os345.h"
 #include "os345signals.h"
 #include "os345config.h"
 #include "os345lc3.h"
 #include "os345fat.h"
+#include "pqueue.h"
 
 // **********************************************************************
 //	local prototypes
 //
 void pollInterrupts(void);
 static int scheduler(void);
+static void swapTaskOut(Pqueue* q);
+static void swapTaskIn(PqEntry*  newTask);
 static int dispatcher(void);
 
 //static void keyboard_isr(void);
@@ -53,6 +57,7 @@ Semaphore* keyboard;				// keyboard semaphore
 Semaphore* charReady;				// character has been entered
 Semaphore* inBufferReady;			// input buffer ready semaphore
 
+Semaphore* tics10sec;				// 10 second semaphore
 Semaphore* tics1sec;				// 1 second semaphore
 Semaphore* tics10thsec;				// 1/10 second semaphore
 
@@ -68,7 +73,8 @@ volatile void* temp;				// temp pointer used in dispatcher
 
 int scheduler_mode;					// scheduler mode
 int superMode;						// system mode
-int curTask;						// current task #
+PqEntry* curTask;						// current task #
+Pqueue* rQueue;						// task ready queue
 long swapCount;						// number of re-schedule cycles
 char inChar;						// last entered character
 int charFlag;						// 0 => buffered input
@@ -80,10 +86,10 @@ int pollClock;						// current clock()
 int lastPollClock;					// last pollClock
 bool diskMounted;					// disk has been mounted
 
+time_t oldTime10;					// old 10sec time
 time_t oldTime1;					// old 1sec time
 clock_t myClkTime;
 clock_t myOldClkTime;
-int* rq;							// ready priority queue
 
 
 // **********************************************************************
@@ -112,6 +118,7 @@ int main(int argc, char* argv[])
 		case POWER_DOWN_RESTART:			// restart
 			powerDown(resetCode);
 			printf("\nRestarting system...\n");
+			break;
 
 		case POWER_UP:						// startup
 			break;
@@ -187,15 +194,15 @@ int main(int argc, char* argv[])
 	if ( resetCode = initOS()) return resetCode;
 
 	// create global/system semaphores here
-	//?? vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+	swapTaskIn(newPqEntry(0, MED_PRIORITY));	// list shell task as running
 
 	charReady = createSemaphore("charReady", BINARY, 0);
 	inBufferReady = createSemaphore("inBufferReady", BINARY, 0);
 	keyboard = createSemaphore("keyboard", BINARY, 1);
-	tics1sec = createSemaphore("tics1sec", BINARY, 0);
+	tics10sec = createSemaphore("tics10sec", COUNTING, 0);
+	tics1sec = createSemaphore("tics1sec", COUNTING, 0);
 	tics10thsec = createSemaphore("tics10thsec", BINARY, 0);
-
-	//?? ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	// schedule CLI task
 	createTask("myShell",			// task name
@@ -203,8 +210,6 @@ int main(int argc, char* argv[])
 					MED_PRIORITY,	// task priority
 					argc,			// task arg count
 					argv);			// task argument pointers
-
-	// HERE WE GO................
 
 	// Scheduling loop
 	// 1. Check for asynchronous events (character inputs, timers, etc.)
@@ -214,14 +219,16 @@ int main(int argc, char* argv[])
 
 	while(1)									// scheduling loop
 	{
+		//sleep(1);
 		// check for character / timer interrupts
 		pollInterrupts();
 
 		// schedule highest priority ready task
-		if ((curTask = scheduler()) < 0) continue;
+		if (scheduler() < 0) continue;
 
 		// dispatch curTask, quit OS if negative return
 		if (dispatcher() < 0) break;
+
 	}											// end of scheduling loop
 
 	// exit os
@@ -237,33 +244,34 @@ int main(int argc, char* argv[])
 //
 static int scheduler()
 {
-	int nextTask;
-	// ?? Design and implement a scheduler that will select the next highest
-	// ?? priority ready task to pass to the system dispatcher.
-
-	// ?? WARNING: You must NEVER call swapTask() from within this function
-	// ?? or any function that it calls.  This is because swapping is
-	// ?? handled entirely in the swapTask function, which, in turn, may
-	// ?? call this function.  (ie. You would create an infinite loop.)
-
-	// ?? Implement a round-robin, preemptive, prioritized scheduler.
-
-	// ?? This code is simply a round-robin scheduler and is just to get
-	// ?? you thinking about scheduling.  You must implement code to handle
-	// ?? priorities, clean up dead tasks, and handle semaphores appropriately.
-
-	// schedule next task
-	nextTask = ++curTask;
-
-	// mask sure nextTask is valid
-	while (!tcb[nextTask].name)
-	{
-		if (++nextTask >= MAX_TASKS) nextTask = 0;
+	if (curTask) {
+		if (tcb[curTask->tid].event == 0) {
+			swapTaskOut(rQueue);
+		} else {
+			// task is in semaphore queue
+		}
 	}
-	if (tcb[nextTask].signal & mySIGSTOP) return -1;
 
-	return nextTask;
+	PqEntry* popped = pop(rQueue);
+	if (popped->tid == -1) {
+		free(popped);
+		return -1;
+	} else {
+		swapTaskIn(popped);
+		if (tcb[curTask->tid].signal & mySIGSTOP) return -1;
+		return curTask->tid;
+	}
 } // end scheduler
+
+static void swapTaskOut(Pqueue* q) {
+	//printf("swapTaskOut(%s) -> t: %i  p: %i\n", q->name, curTask->tid, curTask->priority);
+	put(q, curTask);
+}
+
+static void swapTaskIn(PqEntry* newTask) {
+	//printf("swapTaskIn(t: %i  p: %i)\n", newTask->tid, newTask->priority);
+	curTask = newTask;
+}
 
 
 
@@ -276,13 +284,13 @@ static int dispatcher()
 	int result;
 
 	// schedule task
-	switch(tcb[curTask].state)
+	switch(tcb[curTask->tid].state)
 	{
 		case S_NEW:
 		{
 			// new task
-			printf("\nNew Task[%d] %s", curTask, tcb[curTask].name);
-			tcb[curTask].state = S_RUNNING;	// set task to run state
+			printf("New Task[%d] %s\n", curTask->tid, tcb[curTask->tid].name);
+			tcb[curTask->tid].state = S_RUNNING;	// set task to run state
 
 			// save kernel context for task SWAP's
 			if (setjmp(k_context))
@@ -292,17 +300,17 @@ static int dispatcher()
 			}
 
 			// move to new task stack (leave room for return value/address)
-			temp = (int*)tcb[curTask].stack + (STACK_SIZE-8);
+			temp = (int*)tcb[curTask->tid].stack + (STACK_SIZE-8);
 			SET_STACK(temp);
 			superMode = FALSE;						// user mode
 
 			// begin execution of new task, pass argc, argv
-			result = (*tcb[curTask].task)(tcb[curTask].argc, tcb[curTask].argv);
+			result = (*tcb[curTask->tid].task)(tcb[curTask->tid].argc, tcb[curTask->tid].argv);
 
 			// task has completed
-			if (result) printf("\nTask[%d] returned %d", curTask, result);
-			else printf("\nTask[%d] returned %d", curTask, result);
-			tcb[curTask].state = S_EXIT;			// set task to exit state
+			if (result) printf("Task[%d] returned %d\n", curTask->tid, result);
+			else printf("Task[%d] returned %d\n", curTask->tid, result);
+			tcb[curTask->tid].state = S_EXIT;			// set task to exit state
 
 			// return to kernal mode
 			longjmp(k_context, 1);					// return to kernel
@@ -310,7 +318,7 @@ static int dispatcher()
 
 		case S_READY:
 		{
-			tcb[curTask].state = S_RUNNING;			// set task to run
+			tcb[curTask->tid].state = S_RUNNING;			// set task to run
 		}
 
 		case S_RUNNING:
@@ -322,7 +330,7 @@ static int dispatcher()
 				break;								// return from task
 			}
 			if (signals()) break;
-			longjmp(tcb[curTask].context, 3); 		// restore task context
+			longjmp(tcb[curTask->tid].context, 3); 		// restore task context
 		}
 
 		case S_BLOCKED:
@@ -332,15 +340,15 @@ static int dispatcher()
 
 		case S_EXIT:
 		{
-			if (curTask == 0) return -1;			// if CLI, then quit scheduler
+			if (curTask->tid == 0) return -1;			// if CLI, then quit scheduler
 			// release resources and kill task
-			sysKillTask(curTask);					// kill current task
+			sysKillTask(curTask->tid);					// kill current task
 			break;
 		}
 
 		default:
 		{
-			printf("Unknown Task[%d] State", curTask);
+			printf("Unknown Task[%d] State", curTask->tid);
 			longjmp(reset_context, POWER_DOWN_ERROR);
 		}
 	}
@@ -366,14 +374,14 @@ void swapTask()
 	swapCount++;
 
 	// either save current task context or schedule task (return)
-	if (setjmp(tcb[curTask].context))
+	if (setjmp(tcb[curTask->tid].context))
 	{
 		superMode = FALSE;					// user mode
 		return;
 	}
 
 	// context switch - move task state to ready
-	if (tcb[curTask].state == S_RUNNING) tcb[curTask].state = S_READY;
+	if (tcb[curTask->tid].state == S_RUNNING) tcb[curTask->tid].state = S_READY;
 
 	// move to kernel mode (reschedule)
 	longjmp(k_context, 2);
@@ -398,7 +406,8 @@ static int initOS()
 	INIT_OS
 
 	// reset system variables
-	curTask = 0;						// current task #
+	rQueue = newPqueue(DEFAULT_CAP, "Ready Queue");
+	curTask = 0;
 	swapCount = 0;						// number of scheduler cycles
 	scheduler_mode = 0;					// default scheduler
 	inChar = 0;							// last entered character
@@ -407,13 +416,10 @@ static int initOS()
 	semaphoreList = 0;					// linked list of active semaphores
 	diskMounted = 0;					// disk has been mounted
 
-	// malloc ready queue
-	rq = (int*)malloc(MAX_TASKS * sizeof(int));
-	if (rq == NULL) return 99;
-
 	// capture current time
 	lastPollClock = clock();			// last pollClock
 	time(&oldTime1);
+	time(&oldTime10);
 
 	// init system tcb's
 	for (i=0; i<MAX_TASKS; i++)
@@ -458,9 +464,9 @@ void powerDown(int code)
 		deleteSemaphore(&semaphoreList);
 
 	// free ready queue
-	free(rq);
+	emptyPqueue(rQueue);
+	free(rQueue);
 
-	// ?? release any other system resources
 	// ?? deltaclock (project 3)
 
 	RESTORE_OS

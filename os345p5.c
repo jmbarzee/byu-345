@@ -21,7 +21,9 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <assert.h>
+
 #include "os345.h"
+#include "pqueue.h"
 
 #define NUM_PARENTS			5
 #define NUM_REPORT_SECONDS	5
@@ -36,7 +38,10 @@ int childTask(int argc, char* argv[]);
 Semaphore* childALive;				// childALive semaphore
 Semaphore* parentDead;				// parent dead
 extern Semaphore* tics1sec;			// 1 second semaphore
-extern int curTask;					// current task #
+extern PqEntry* curTask;					// current task #
+extern Pqueue* rQueue;						// task ready queue
+
+
 extern int scheduler_mode;			// scheduler mode
 long int group_count[NUM_PARENTS];	// parent group counters
 int num_siblings[NUM_PARENTS];		// number in each group
@@ -157,7 +162,7 @@ int childTask(int argc, char* argv[])		// child Task
 	int parent = atoi(argv[1]);
 	if ((parent<1) || (parent>NUM_PARENTS))
 	{
-		printf("\n**Parent Error!  Task %d, Parent %d", curTask, parent);
+		printf("\n**Parent Error!  Task %d, Parent %d", curTask->tid, parent);
 		return 0;							// die!!
 	}
 

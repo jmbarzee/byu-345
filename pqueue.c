@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "pqueue.h"
 
@@ -20,10 +21,11 @@ PqEntry* newPqEntry(int tid, int priority) {
 	return ret;
 }
 
-Pqueue* newPqueue(int cap) {
-	printf("newPqueue(%i)\n", cap);
+Pqueue* newPqueue(int cap, char* name) {
+	//printf("newPqueue(%i, %s)\n", cap, name);
 	Pqueue* ret = malloc(sizeof(Pqueue));
 	ret->size = 0;
+	ret->name = name;
 	if (cap < 1) {
 		ret->cap = 0;
 		ret->content = 0;
@@ -34,8 +36,18 @@ Pqueue* newPqueue(int cap) {
 	return ret;
 }
 
+void emptyPqueue(Pqueue* q) {
+	//printf("emptyPqueue(%s)\n", q->name);
+	for (int i = 0; i < q->size; i++) {
+		free(q->content[i]);
+		q->content[i] = 0;
+	}
+	q->size = 0;
+}
+
 PqEntry* pop(Pqueue* q) {
-	printf("pop()");
+	//printf("pop(%s)", q->name);
+	//fflush(stdout);
 	PqEntry* ret;
 	if (q->size < 1) {
 		ret = malloc(sizeof(PqEntry));
@@ -45,12 +57,36 @@ PqEntry* pop(Pqueue* q) {
 		ret = q->content[q->size-1];
 		q->content[q->size--] = 0;
 	}
-	printf("->  t: %i  p: %i\n", ret->tid, ret->priority);
+	//printf(" ->  t: %i  p: %i\n", ret->tid, ret->priority);
+	return ret;
+}
+
+PqEntry* eject(Pqueue* q, int tid) {
+	//printf("eject(%s)", q->name);
+	//fflush(stdout);
+	PqEntry* ret = 0;
+	int i;
+	for (i = 0; i < q->size; i++) {
+		if (q->content[i]->tid == tid) {
+			ret = q->content[i];
+			q->size--;
+			break;
+		}
+	}
+	while (i < q->cap-1) {
+		q->content[i] = q->content[++i];
+	}
+	if (!ret) {
+		ret = malloc(sizeof(PqEntry));
+		ret->priority = -1;
+		ret->tid = -1;
+	}
+	//printf(" ->  t: %i  p: %i\n", ret->tid, ret->priority);
 	return ret;
 }
 
 void put(Pqueue* q, PqEntry* entry) {
-	printf("put(t: %i  p: %i)\n", entry->tid, entry->priority);
+	//printf("put(%s, t: %i  p: %i)\n", q->name, entry->tid, entry->priority);
 	if (q->size == q->cap) {
 		PqEntry** newContent = malloc(sizeof(PqEntry)*(q->cap + CAP_INCREASE));
 		int newPos = q->size;
@@ -101,6 +137,7 @@ void put(Pqueue* q, PqEntry* entry) {
 
 void printPqueue(Pqueue* q) {
 	printf("\n********* Pqueue *********\n");
+	printf("name:  %i\n", q->name);
 	printf("cap:  %i\n", q->cap);
 	printf("size: %i\n", q->size);
 	for (int i = q->size-1; i > -1; i--) {

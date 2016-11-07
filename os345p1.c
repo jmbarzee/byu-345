@@ -21,9 +21,11 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <assert.h>
+
 #include "os345.h"
 #include "os345signals.h"
 #include "os345argparse.h"
+#include "Pqueue.h"
 
 // The 'reset_context' comes from 'main' in os345.c.  Proper shut-down
 // procedure is to long jump to the 'reset_context' passing in the
@@ -31,7 +33,7 @@
 
 extern jmp_buf reset_context;
 extern TCB tcb[];
-extern int curTask;
+extern PqEntry* curTask;
 
 // ***********************************************************************
 // project 1 global variables
@@ -76,8 +78,6 @@ int P1_shellTask(int argc, char* argv[])
 
 	// initialize shell commands
 	commands = P1_init();					// init shell commands
-
-	//sigAction(mySigIntHandler, mySIGINT);
 
 
 	while (1)
@@ -140,7 +140,7 @@ int P1AliveTask(int argc, char* argv[])
 	while (1)
 	{
 		int i;
-		printf("\n(%d) ", curTask);
+		printf("\n(%d) ", curTask->tid);
 		for (i = 0; i < argc; i++) printf("%s%s", argv[i], (i < argc) ? " " : "");
 		for (i = 0; i < 100000; i++) swapTask();
 	}

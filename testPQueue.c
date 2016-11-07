@@ -4,7 +4,7 @@
 
 int mainTest(int argc, char* argv[]) {
 	printf("Starting Test Main\n");
-	Pqueue* pq = newPqueue(5);
+	Pqueue* pq = newPqueue(5, "testQueue");
 	printPqueue(pq);
 	put(pq, newPqEntry(0, 1));
 	printPqueue(pq);

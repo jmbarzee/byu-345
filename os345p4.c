@@ -31,7 +31,8 @@
 // ***********************************************************************
 // project 4 variables
 extern TCB tcb[];							// task control block
-extern int curTask;						// current task #
+extern PqEntry* curTask;					// current task #
+extern Pqueue* rQueue;						// task ready queue
 
 extern int memAccess;
 extern int memHits;
@@ -166,11 +167,11 @@ int P4_initMemory(int argc, char* argv[])
 {
 	int highAdr = 0x8000;
 
-	tcb[curTask].RPT = 0x2400;
+	tcb[curTask->tid].RPT = 0x2400;
 
 
 	printf("\nValidate arguments...");	// ?? validate arguments
-	if (!tcb[curTask].RPT)
+	if (!tcb[curTask->tid].RPT)
 	{
 		printf("\nTask RPT Invalid!");
 		return 1;

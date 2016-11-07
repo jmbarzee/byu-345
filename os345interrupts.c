@@ -43,14 +43,16 @@ extern Semaphore* keyboard;				// keyboard semaphore
 extern Semaphore* charReady;				// character has been entered
 extern Semaphore* inBufferReady;			// input buffer ready semaphore
 
-extern Semaphore* tics1sec;				// 1 second semaphore
+extern Semaphore* tics10sec;				// 10 second semaphore
+extern Semaphore* tics1sec;					// 1 second semaphore
 extern Semaphore* tics10thsec;				// 1/10 second semaphore
 
 extern char inChar;				// last entered character
 extern int charFlag;				// 0 => buffered input
 extern int inBufIndx;				// input pointer into input buffer
-extern char inBuffer[INBUF_SIZE+1];	// character input buffer
+extern char inBuffer[INBUF_SIZE + 1];	// character input buffer
 
+extern time_t oldTime10;				// old 10sec time
 extern time_t oldTime1;					// old 1sec time
 extern clock_t myClkTime;
 extern clock_t myOldClkTime;
@@ -60,22 +62,19 @@ extern int lastPollClock;			// last pollClock
 
 extern int superMode;						// system mode
 
-
 // **********************************************************************
 // **********************************************************************
 // simulate asynchronous interrupts by polling events during idle loop
 //
-void pollInterrupts(void)
-{
+void pollInterrupts(void) {
 	// check for task monopoly
 	pollClock = clock();
 	assert("Timeout" && ((pollClock - lastPollClock) < MAX_CYCLES));
 	lastPollClock = pollClock;
 
 	// check for keyboard interrupt
-	if ((inChar = GET_CHAR) > 0)
-	{
-	  keyboard_isr();
+	if ((inChar = GET_CHAR) > 0) {
+		keyboard_isr();
 	}
 
 	// timer interrupt
@@ -84,78 +83,70 @@ void pollInterrupts(void)
 	return;
 } // end pollInterrupts
 
-
 // **********************************************************************
 // keyboard interrupt service routine
 //
-static void keyboard_isr()
-{
+static void keyboard_isr() {
 	debugPrint('i', 'f', "key_board\n");
 	// assert system mode
 	assert("keyboard_isr Error" && superMode);
 
 	semSignal(charReady);					// SIGNAL(charReady) (No Swap)
-	if (charFlag == 0)
-	{
+	if (charFlag == 0) {
 		debugPrint('i', 'k', "char -  %04x, %c\n", inChar, inChar);
-		switch (inChar)
+		switch (inChar) {
+		case '\r':
+		case '\n': {
+			debugPrint('i', 'r', "respond - newline\n");
+			printf("%c", inChar);
+			inBufIndx = 0;				// EOL, signal line ready
+			semSignal(inBufferReady);	// SIGNAL(inBufferReady)
+			break;
+		}
+		case 0x12:						// ^r
 		{
-			case '\r':
-			case '\n':
-			{
-				debugPrint('i', 'r', "respond - newline\n");
+			debugPrint('i', 'r', "respond - ctrl+r\n");
+			clearSignal(-1, mySIGTSTP);
+			clearSignal(-1, mySIGSTOP);
+			sigSignal(-1, mySIGCONT);	// resume all tasks
+			break;
+		}
+		case 0x17:						// ^w
+		{
+			debugPrint('i', 'r', "respond - ctrl+w\n");
+			sigSignal(-1, mySIGTSTP);	// pause all tasks
+			break;
+		}
+		case 0x18:						// ^x
+		{
+			debugPrint('i', 'r', "respond - ctrl+x\n");
+			inBufIndx = 0;
+			inBuffer[0] = 0;
+			sigSignal(0, mySIGINT);		// halt all tasks
+			semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
+			break;
+		}
+		case 0x7f:						// ^x
+		{
+			debugPrint('i', 'r', "respond - backspace\n");
+			if (inBufIndx > 0) {
+				printf("\b \b");
+				inBuffer[inBufIndx--] = '\0';
+			}
+			break;
+		}
+		default: {
+			if (inBufIndx < INBUF_SIZE - 1) {
+				debugPrint('i', 'r', "respond - default\n");
 				printf("%c", inChar);
-				inBufIndx = 0;				// EOL, signal line ready
-				semSignal(inBufferReady);	// SIGNAL(inBufferReady)
-				break;
-			}
-			case 0x12:						// ^r
-			{
-				debugPrint('i', 'r', "respond - ctrl+r\n");
-				clearSignal(-1, mySIGTSTP);
-				clearSignal(-1, mySIGSTOP);
-				sigSignal(-1, mySIGCONT);	// resume all tasks
-				break;
-			}
-			case 0x17:						// ^w
-			{
-				debugPrint('i', 'r', "respond - ctrl+w\n");
-				sigSignal(-1, mySIGTSTP);	// pause all tasks
-				break;
-			}
-			case 0x18:						// ^x
-			{
-				debugPrint('i', 'r', "respond - ctrl+x\n");
-				inBufIndx = 0;
-				inBuffer[0] = 0;
-				sigSignal(0, mySIGINT);		// halt all tasks
-				semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
-				break;
-			}
-			case 0x7f:						// ^x
-			{
-				debugPrint('i', 'r', "respond - backspace\n");
-				if (inBufIndx > 0) {
-					printf("\b \b");
-					inBuffer[inBufIndx--] = '\0';
-				}
-				break;
-			}
-			default:
-			{
-				if (inBufIndx < INBUF_SIZE - 1) {
-					debugPrint('i', 'r', "respond - default\n");
-					printf("%c", inChar);
-					inBuffer[inBufIndx++] = inChar;
-					inBuffer[inBufIndx] = 0;
-				} else {
-					printf("\a");
-				}
+				inBuffer[inBufIndx++] = inChar;
+				inBuffer[inBufIndx] = 0;
+			} else {
+				printf("\a");
 			}
 		}
-	}
-	else
-	{
+		}
+	} else {
 		// single character mode
 		inBufIndx = 0;
 		inBuffer[inBufIndx] = 0;
@@ -163,37 +154,38 @@ static void keyboard_isr()
 	return;
 } // end keyboard_isr
 
-
 // **********************************************************************
 // timer interrupt service routine
 //
-static void timer_isr()
-{
+static void timer_isr() {
 	time_t currentTime;						// current time
 
 	// assert system mode
 	assert("timer_isr Error" && superMode);
 
 	// capture current time
-  	time(&currentTime);
+	time(&currentTime);
 
-  	// one second timer
-  	if ((currentTime - oldTime1) >= 1)
-  	{
+	// one second timer
+	if ((currentTime - oldTime1) >= ONE_SECOND) {
 		// signal 1 second
-  	   semSignal(tics1sec);
+		//semSignal(tics1sec);
 		oldTime1 += 1;
-  	}
+	}
+
+	// ten second timer
+	if ((currentTime - oldTime10) >= TEN_SECONDS) {
+		// signal 10 second
+		semSignal(tics10sec);
+		oldTime10 += 10;
+	}
 
 	// sample fine clock
 	myClkTime = clock();
-	if ((myClkTime - myOldClkTime) >= ONE_TENTH_SEC)
-	{
+	if ((myClkTime - myOldClkTime) >= ONE_TENTH_SEC) {
 		myOldClkTime = myOldClkTime + ONE_TENTH_SEC;   // update old
-		semSignal(tics10thsec);
+		//semSignal(tics10thsec);
 	}
-
-	// ?? add other timer sampling/signaling code here for project 2
 
 	return;
 } // end timer_isr

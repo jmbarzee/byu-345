@@ -38,7 +38,6 @@
 #define MAX_CYCLES			CLOCKS_PER_SEC/2
 #define NUM_MESSAGES		500
 #define INBUF_SIZE			256
-#define ONE_TENTH_SEC		(CLOCKS_PER_SEC/10)
 
 // Default priorities
 #define LOW_PRIORITY		1
@@ -64,6 +63,10 @@
 #define BINARY				0
 #define COUNTING			1
 
+#define ONE_SECOND			1
+#define TEN_SECONDS			10
+#define ONE_TENTH_SEC		(CLOCKS_PER_SEC/10)
+
 // Swap space (P4)
 enum {PAGE_INIT, PAGE_READ, PAGE_OLD_WRITE, PAGE_NEW_WRITE,
 	  PAGE_GET_SIZE, PAGE_GET_READS, PAGE_GET_WRITES, PAGE_GET_ADR, PAGE_FREE};
@@ -77,10 +80,11 @@ typedef int TID;						// task id
 typedef struct semaphore			// semaphore
 {
 	struct semaphore* semLink;		// semaphore link
-	char* name;							// semaphore name
-	int state;							// semaphore state
-	int type;							// semaphore type
-	int taskNum;						// semaphore creator task #
+	char* name;							// name
+	int state;							// state
+	int type;							// type (0 -> binary, 1 -> counting)
+	int taskNum;						// creator task #
+	Pqueue* pq;							// priority queue of waiting tasks
 } Semaphore;
 
 // task control block
@@ -107,8 +111,8 @@ typedef struct							// task control block
 } TCB;
 
 // Task specific variables
-#define CDIR		tcb[curTask].cdir
-#define TASK_RPT	tcb[curTask].RPT
+#define CDIR		tcb[curTask->tid].cdir
+#define TASK_RPT	tcb[curTask->tid].RPT
 
 // intertask message
 typedef struct
@@ -138,23 +142,23 @@ int semTryLock(Semaphore*);
 
 
 // ***********************************************************************
-#define POWER_UP					0
+#define POWER_UP			0
 
 // The POWER_DOWN_ERROR is to catch error conditions in the simple OS
 // that are unrecoverable.  Again, code must set context back to the
 // 'main' function and let 'main' handle the 'powerDown' sequence.
-#define POWER_DOWN_ERROR      1
+#define POWER_DOWN_ERROR    1
 
 // POWER_DOWN_QUIT is used to indicate that the CLI has made a long
 // jump into the main context of os345 with the intent to 'quit' the
 // simple OS and power down.  The main function in os345.c will catch
 // the 'quit' request and 'powerDown'.
-#define POWER_DOWN_QUIT       -2
+#define POWER_DOWN_QUIT     -2
 
 // The POWER_DOWN_RESTART indicates the user issued the 'restart'
 // command in the CLI.  Again, the 'main' function issues the
 // 'powerDown' sequence.
-#define POWER_DOWN_RESTART    -1
+#define POWER_DOWN_RESTART  -1
 
 // ***********************************************************************
 // Command prototypes

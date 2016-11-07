@@ -26,11 +26,13 @@
 
 #include "os345.h"
 #include "os345signals.h"
+#include "pqueue.h"
 //#include "os345config.h"
 
 
 extern TCB tcb[];							// task control block
-extern int curTask;							// current task #
+extern PqEntry* curTask;					// current task #
+extern Pqueue* rQueue;						// task ready queue
 
 extern int superMode;						// system mode
 extern Semaphore* semaphoreList;			// linked list of active semaphores
@@ -60,6 +62,10 @@ int createTask(char* name,						// task name
 		{
 			char buf[8];
 
+			if (tid != 0) {
+				put(rQueue, newPqEntry(tid, priority));
+			}
+
 			// create task semaphore
 			if (taskSems[tid]) deleteSemaphore(&taskSems[tid]);
 			sprintf(buf, "task%d", tid);
@@ -74,7 +80,7 @@ int createTask(char* name,						// task name
 			tcb[tid].task = task;			// task address
 			tcb[tid].state = S_NEW;			// NEW task state
 			tcb[tid].priority = priority;	// task priority
-			tcb[tid].parent = curTask;		// parent
+			tcb[tid].parent = curTask->tid;		// parent
 			tcb[tid].argc = argc;			// argument count
 
 			// ?? malloc new argv parameters
@@ -89,8 +95,6 @@ int createTask(char* name,						// task name
 
 			// Each task must have its own stack and stack pointer.
 			tcb[tid].stack = malloc(STACK_SIZE * sizeof(int));
-
-			// ?? may require inserting task into "ready" queue
 
 			if (tid) swapTask();				// do context switch (if not cli)
 			return tid;							// return tcb index (curTask)
@@ -136,6 +140,16 @@ static void exitTask(int taskId)
 {
 	assert("exitTaskError" && tcb[taskId].name);
 
+	Semaphore* sem = semaphoreList;
+	while (sem) {
+		PqEntry* pqEntry = eject(sem->pq, taskId);
+		if (pqEntry->tid != -1) {
+			put(rQueue, pqEntry);
+			break;
+		}
+		sem = (Semaphore*) sem->semLink;
+	}
+
 	// 1. find task in system queue
 	// 2. if blocked, unblock (handle semaphore)
 	// 3. set state to exit
@@ -158,7 +172,7 @@ int sysKillTask(int taskId)
 
 	// assert that you are not pulling the rug out from under yourself!
 	assert("sysKillTask Error" && tcb[taskId].name && superMode);
-	printf("\nKill Task %s", tcb[taskId].name);
+	printf("Kill Task %s\n", tcb[taskId].name);
 
 	// signal task terminated
 	semSignal(taskSems[taskId]);
@@ -181,7 +195,8 @@ int sysKillTask(int taskId)
 	for (int i=0; i<tcb[taskId].argc; i++) free((tcb[taskId].argv)[i]);
 	free(tcb[taskId].argv);
 
-	// ?? delete task from system queues
+	free(curTask);	// ?? delete task from system queues
+	curTask = 0;
 
 	tcb[taskId].name = 0;			// release tcb slot
 	return 0;
