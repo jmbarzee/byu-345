@@ -114,15 +114,6 @@ typedef struct							// task control block
 #define CDIR		tcb[getCurTask()].cdir
 #define TASK_RPT	tcb[getCurTask()].RPT
 
-// intertask message
-typedef struct
-{
-	int from;                  // source
-	int to;                    // destination
-	char* msg;						// msg
-} Message;
-#define MAX_MESSAGE_SIZE		64
-
 // ***********************************************************************
 // system prototypes
 int createTask(char*, int (*)(int, char**), int, int, char**);
@@ -136,8 +127,6 @@ int killTask(Tid taskId);
 void powerDown(int code);
 void swapTask(void);
 
-int getMessage(int from, int to, Message* msg);
-int postMessage(int from, int to, char* msg);
 char* myTime(char*);
 
 Semaphore* createSemaphore(char* name, int type, int state);
