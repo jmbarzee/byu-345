@@ -25,15 +25,13 @@
 #include "os345.h"
 #include "os345signals.h"
 #include "os345argparse.h"
-#include "Pqueue.h"
+#include "pq.h"
 
 // The 'reset_context' comes from 'main' in os345.c.  Proper shut-down
 // procedure is to long jump to the 'reset_context' passing in the
 // power down code from 'os345.h' that indicates the desired behaviour.
 
 extern jmp_buf reset_context;
-extern TCB tcb[];
-extern PqEntry* curTask;
 
 // ***********************************************************************
 // project 1 global variables
@@ -140,7 +138,7 @@ int P1AliveTask(int argc, char* argv[])
 	while (1)
 	{
 		int i;
-		printf("\n(%d) ", curTask->tid);
+		printf("\n(%d) ", getCurTask());
 		for (i = 0; i < argc; i++) printf("%s%s", argv[i], (i < argc) ? " " : "");
 		for (i = 0; i < 100000; i++) swapTask();
 	}

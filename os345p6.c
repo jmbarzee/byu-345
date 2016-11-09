@@ -25,7 +25,7 @@
 
 #include "os345.h"
 #include "os345fat.h"
-#include "pqueue.h"
+#include "pq.h"
 
 // ***********************************************************************
 // ***********************************************************************
@@ -39,7 +39,6 @@ extern FDEntry OFTable[];	          	// open files
 extern char dirPath[128];				// directory path
 
 extern TCB tcb[];						// task control block
-extern PqEntry* curTask;						// current task #
 extern bool diskMounted;				// disk has been mounted
 
 FMSERROR FMSErrors[NUM_ERRORS]   = {
@@ -392,7 +391,8 @@ int P6_type(int argc, char* argv[])		// display file
 		SWAP;
 	}
 	if (nBytes != ERR66) fmsError(nBytes);
-	if (error = fmsCloseFile(FDs)) fmsError(error);
+	error = fmsCloseFile(FDs);
+	if (error) fmsError(error);
 	return 0;
 } // end P6_type
 
@@ -1597,7 +1597,8 @@ int isValidFileName(char* fileName)
 	// check for invalid characters
 	if (strpbrk(fileName, "\"/:*<>|?")) return 0;
 	// check for double period
-	if (s = strchr(fileName, '.'))
+	s = strchr(fileName, '.');
+	if (s)
 	{
 		if (strchr(s+1, '.')) return 0;			// more than 1 '.'
 		if (strlen(s+1) > 3) return 0;			// too long of extension
@@ -1707,7 +1708,8 @@ int fmsGetNextDirEntry(int *dirNum, char* mask, DirEntry* dirEntry, int dir)
 		}
 
 		// read sector into directory buffer
-		if (error = fmsReadSector(buffer, dirSector)) return error;
+		error = fmsReadSector(buffer, dirSector);
+		if (error) return error;
 
 		// find next matching directory entry
 		while(1)
@@ -1716,9 +1718,11 @@ int fmsGetNextDirEntry(int *dirNum, char* mask, DirEntry* dirEntry, int dir)
 			memcpy(dirEntry, &buffer[dirIndex * sizeof(DirEntry)], sizeof(DirEntry));
 			if (dirEntry->name[0] == 0) return ERR67;	// EOD
 			(*dirNum)++;                        		// prepare for next read
-			if (dirEntry->name[0] == 0xe5);     		// Deleted entry, go on...
-			else if (dirEntry->attributes == LONGNAME);
-			else if (fmsMask(mask, dirEntry->name, dirEntry->extension)) return 0;   // return if valid
+			if (dirEntry->name[0] == 0xe5) {  		// Deleted entry, go on...
+			} else if (dirEntry->attributes == LONGNAME) {
+			} else if (fmsMask(mask, dirEntry->name, dirEntry->extension)) {
+				return 0;   // return if valid
+			}
 			// break if sector boundary
 			if ((*dirNum % ENTRIES_PER_SECTOR) == 0) break;
 		}

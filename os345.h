@@ -7,7 +7,7 @@
 
 #include <setjmp.h>
 
-#include "pqueue.h"
+#include "pq.h"
 
 // ***********************************************************************
 // ***********************************************************************
@@ -74,7 +74,7 @@ enum {PAGE_INIT, PAGE_READ, PAGE_OLD_WRITE, PAGE_NEW_WRITE,
 // ***********************************************************************
 // system structs
 typedef int bool;						// boolean value
-typedef int TID;						// task id
+typedef int Tid;						// task id
 
 // semaphore
 typedef struct semaphore			// semaphore
@@ -84,14 +84,14 @@ typedef struct semaphore			// semaphore
 	int state;							// state
 	int type;							// type (0 -> binary, 1 -> counting)
 	int taskNum;						// creator task #
-	Pqueue* pq;							// priority queue of waiting tasks
+	PQ* pq;							// priority queue of waiting tasks
 } Semaphore;
 
 // task control block
 typedef struct							// task control block
 {
 	char* name;							// task name
-	int (*task)(int,char**);		// task address
+	int (*task)(int,char**);			// task address
 	int state;							// task state
 	int priority;						// task priority (project 2)
 	int argc;							// task argument count (project 1)
@@ -102,8 +102,8 @@ typedef struct							// task control block
 	void (*sigKillHandler)(void);	// task mySIGKILL handler
 	void (*sigTermHandler)(void);	// task mySIGTERM handler
 	void (*sigTstpHandler)(void);	// task mySIGTSTP handler
-	TID parent;							// task parent
-	int RPT;								// task root page table (project 5)
+	Tid parent;							// task parent
+	int RPT;							// task root page table (project 5)
 	int cdir;							// task directory (project 6)
 	Semaphore *event;					// blocked task semaphore
 	void* stack;						// task stack
@@ -111,22 +111,28 @@ typedef struct							// task control block
 } TCB;
 
 // Task specific variables
-#define CDIR		tcb[curTask->tid].cdir
-#define TASK_RPT	tcb[curTask->tid].RPT
+#define CDIR		tcb[getCurTask()].cdir
+#define TASK_RPT	tcb[getCurTask()].RPT
 
 // intertask message
 typedef struct
 {
 	int from;                  // source
-   int to;                    // destination
-   char* msg;						// msg
+	int to;                    // destination
+	char* msg;						// msg
 } Message;
 #define MAX_MESSAGE_SIZE		64
 
 // ***********************************************************************
 // system prototypes
 int createTask(char*, int (*)(int, char**), int, int, char**);
-int killTask(int taskId);
+
+int taskPriority(Tid tid);			// accessor for tcb[tid].priority
+
+void setCurTask(Tid tid);
+Tid getCurTask(void);
+
+int killTask(Tid taskId);
 void powerDown(int code);
 void swapTask(void);
 

@@ -31,8 +31,6 @@ Semaphore* fillSeat[NUM_CARS];			// (signal) seat ready to fill
 Semaphore* seatFilled[NUM_CARS];			// (wait) passenger seated
 Semaphore* rideOver[NUM_CARS];			// (signal) ride over
 
-extern TCB tcb[];							// task control block
-extern int curTask;
 extern Semaphore* tics1sec;				// 1 second semaphore
 
 Semaphore* moveCars;

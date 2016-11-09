@@ -14,11 +14,11 @@
 #define mySIGSTOP			0x8000
 
 
-int sigSignal(int taskId, int sig);
-int clearSignal(int taskId, int sig);
+int sigSignal(Tid tid, int sig);
+int clearSignal(Tid tid, int sig);
 int sigAction(void (*sigHandler)(void), int sig);
 void defaultSigIntHandler(void);
-void createTaskSigHandlers(int tid);
+void createTaskSigHandlers(Tid tid);
 
 int signals(void);
 

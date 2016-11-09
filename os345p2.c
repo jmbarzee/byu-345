@@ -25,7 +25,7 @@
 
 #include "os345.h"
 #include "os345signals.h"
-#include "pqueue.h"
+#include "pq.h"
 
 // ***********************************************************************
 // project 2 variables
@@ -34,9 +34,8 @@ static Semaphore* s2Sem;					// task 2 semaphore
 
 extern Semaphore* tics10sec;				// 10 second semaphore
 
-extern TCB tcb[];							// task control block
-extern PqEntry* curTask;					// current task #
-extern Pqueue* rQueue;						// task ready queue
+extern TCB tcb[];						// task control block
+extern PQ* rQueue;						// task ready queue
 
 extern Semaphore* semaphoreList;			// linked list of active semaphores
 extern jmp_buf reset_context;				// context of kernel stack
@@ -102,24 +101,20 @@ int P2_project2(int argc, char* argv[]) {
 // list tasks command
 int P2_listTasks(int argc, char* argv[]) {
 	Semaphore* sem = semaphoreList;
-	if (curTask) {
-		printf("************** RUNNING TASK **************\n");
-		printTask(curTask->tid);
-	}
-	printf("**************    QUEUES    **************\n");
+	printf("%12s %s %s  %s\n", "Name", "Tid", "Pri", "State");
 	if (rQueue > 0) {
 		printf("Queue: %s\n", rQueue->name);
 		for (int i = rQueue->size - 1; i > -1; i--) {
-			printTask(rQueue->content[i]->tid);
+			printTask(rQueue->content[i]);
 		}
 	}
 	sem = (Semaphore*) sem->semLink;
 	while (sem) {
-		Pqueue* q = sem->pq;
+		PQ* q = sem->pq;
 		if (q->size > 0) {
 			printf("Queue: %s\n", sem->name);
 			for (int i = q->size - 1; i > -1; i--) {
-				printTask(q->content[i]->tid);
+				printTask(q->content[i]);
 			}
 		}
 		sem = (Semaphore*) sem->semLink;
@@ -128,11 +123,8 @@ int P2_listTasks(int argc, char* argv[]) {
 	return 0;
 } // end P2_listTasks
 
-void printTask(int tid) {
-	printf("\t\t%s\n", tcb[tid].name);
-	printf("\t\t\t tid:\t%i\n", tid);
-	printf("\t\t\t pry:\t%i\n", tcb[tid].priority);
-	printf("\t\t\t state:\t");
+void printTask(Tid tid) {
+	printf("%12s %3i %3i  ", tcb[tid].name, tid, taskPriority(tid));
 	if (tcb[tid].signal & mySIGSTOP)
 		printf("Paused");
 	else if (tcb[tid].state == S_NEW)
@@ -162,8 +154,6 @@ int match(char* mask, char* name) {
 	while (mask[i] && name[j]) {
 		if (mask[i] == '*')
 			return 1;
-		if (mask[i] == '?')
-			;
 		else if ((mask[i] != toupper(name[j])) && (mask[i] != tolower(name[j])))
 			return 0;
 		i++;
@@ -247,7 +237,7 @@ int signalTask(int argc, char* argv[]) {
 	// loop waiting for semaphore to be signaled
 	while (count < COUNT_MAX) {
 		SEM_WAIT(*mySem);			// wait for signal
-		printf("%s  Task[%d], count=%d\n", tcb[curTask->tid].name, curTask->tid,
+		printf("%s  Task[%d], count=%d\n", tcb[getCurTask()].name, getCurTask(),
 				++count);
 	}
 	return 0;						// terminate task
@@ -259,7 +249,7 @@ int signalTask(int argc, char* argv[]) {
 int ImAliveTask(int argc, char* argv[]) {
 	int i;							// local task variable
 	while (1) {
-		printf("(%d) I'm Alive!\n", curTask->tid);
+		printf("(%d) I'm Alive!\n", getCurTask());
 		for (i = 0; i < 100000; i++)
 			swapTask();
 	}
@@ -276,7 +266,7 @@ int wait10SecTask(int argc, char* argv[]) {
 	// loop waiting for semaphore to be signaled
 	while (1) {
 		SEM_WAIT(tics10sec);		// wait for signal
-		printf("%s  Task[%d], count=%d\n", tcb[curTask->tid].name, curTask->tid,
+		printf("%s  Task[%d], count=%d\n", tcb[getCurTask()].name, getCurTask(),
 				++count);
 	}
 	return 0;						// terminate task

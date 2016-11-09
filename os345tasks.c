@@ -26,13 +26,12 @@
 
 #include "os345.h"
 #include "os345signals.h"
-#include "pqueue.h"
+#include "pq.h"
 //#include "os345config.h"
 
 
 extern TCB tcb[];							// task control block
-extern PqEntry* curTask;					// current task #
-extern Pqueue* rQueue;						// task ready queue
+extern PQ* rQueue;						// task ready queue
 
 extern int superMode;						// system mode
 extern Semaphore* semaphoreList;			// linked list of active semaphores
@@ -62,10 +61,6 @@ int createTask(char* name,						// task name
 		{
 			char buf[8];
 
-			if (tid != 0) {
-				put(rQueue, newPqEntry(tid, priority));
-			}
-
 			// create task semaphore
 			if (taskSems[tid]) deleteSemaphore(&taskSems[tid]);
 			sprintf(buf, "task%d", tid);
@@ -80,7 +75,7 @@ int createTask(char* name,						// task name
 			tcb[tid].task = task;			// task address
 			tcb[tid].state = S_NEW;			// NEW task state
 			tcb[tid].priority = priority;	// task priority
-			tcb[tid].parent = curTask->tid;		// parent
+			tcb[tid].parent = getCurTask();		// parent
 			tcb[tid].argc = argc;			// argument count
 
 			// ?? malloc new argv parameters
@@ -96,13 +91,22 @@ int createTask(char* name,						// task name
 			// Each task must have its own stack and stack pointer.
 			tcb[tid].stack = malloc(STACK_SIZE * sizeof(int));
 
-			if (tid) swapTask();				// do context switch (if not cli)
+			put(rQueue, tid);
+			if (tid) {
+				swapTask();				// do context switch (if not cli)
+			}
 			return tid;							// return tcb index (curTask)
 		}
 	}
 	// tcb full!
 	return -1;
 } // end createTask
+
+int taskPriority(Tid tid) {
+	if (tid > -1)
+		return tcb[tid].priority;
+	return tid;
+}
 
 
 
@@ -112,7 +116,7 @@ int createTask(char* name,						// task name
 //
 //	taskId == -1 => kill all non-shell tasks
 //
-static void exitTask(int taskId);
+static void exitTask(int tid);
 int killTask(int taskId)
 {
 	if (taskId != 0)			// don't terminate shell
@@ -136,27 +140,18 @@ int killTask(int taskId)
 	return 0;
 } // end killTask
 
-static void exitTask(int taskId)
+static void exitTask(Tid tid)
 {
-	assert("exitTaskError" && tcb[taskId].name);
+	assert("exitTaskError" && tcb[tid].name);
 
 	Semaphore* sem = semaphoreList;
 	while (sem) {
-		PqEntry* pqEntry = eject(sem->pq, taskId);
-		if (pqEntry->tid != -1) {
-			put(rQueue, pqEntry);
-			break;
-		}
+		if (pull(sem->pq, tid) != -1)
+			put(rQueue, tid);
 		sem = (Semaphore*) sem->semLink;
 	}
 
-	// 1. find task in system queue
-	// 2. if blocked, unblock (handle semaphore)
-	// 3. set state to exit
-
-	// ?? add code here
-
-	tcb[taskId].state = S_EXIT;			// EXIT task state
+	tcb[tid].state = S_EXIT;			// EXIT task state
 	return;
 } // end exitTask
 
@@ -165,22 +160,23 @@ static void exitTask(int taskId)
 // **********************************************************************
 // system kill task
 //
-int sysKillTask(int taskId)
+int sysKillTask(Tid tid)
 {
 	Semaphore* sem = semaphoreList;
 	Semaphore** semLink = &semaphoreList;
 
 	// assert that you are not pulling the rug out from under yourself!
-	assert("sysKillTask Error" && tcb[taskId].name && superMode);
-	printf("Kill Task %s\n", tcb[taskId].name);
+	assert("sysKillTask Error" && tcb[tid].name && superMode);
+	printf("Kill Task %s\n", tcb[tid].name);
 
 	// signal task terminated
-	semSignal(taskSems[taskId]);
+	semSignal(taskSems[tid]);
 
 	// look for any semaphores created by this task
-	while(sem = *semLink)
+	sem = *semLink;
+	while(sem)
 	{
-		if(sem->taskNum == taskId)
+		if(sem->taskNum == tid)
 		{
 			// semaphore found, delete from list, release memory
 			deleteSemaphore(semLink);
@@ -190,14 +186,15 @@ int sysKillTask(int taskId)
 			// move to next semaphore
 			semLink = (Semaphore**)&sem->semLink;
 		}
+		sem = *semLink;
 	}
 
-	for (int i=0; i<tcb[taskId].argc; i++) free((tcb[taskId].argv)[i]);
-	free(tcb[taskId].argv);
+	for (int i=0; i<tcb[tid].argc; i++) free((tcb[tid].argv)[i]);
+	free(tcb[tid].argv);
 
-	free(curTask);	// ?? delete task from system queues
-	curTask = 0;
+	pull(rQueue, tid); // ?? delete task from system queues
+	setCurTask(0);
 
-	tcb[taskId].name = 0;			// release tcb slot
+	tcb[tid].name = 0;			// release tcb slot
 	return 0;
 } // end sysKillTask

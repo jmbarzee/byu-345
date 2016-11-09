@@ -39,13 +39,13 @@ static void timer_isr(void);
 // **********************************************************************
 // global semaphores
 
-extern Semaphore* keyboard;				// keyboard semaphore
+//extern Semaphore* keyboard;				// keyboard semaphore
 extern Semaphore* charReady;				// character has been entered
 extern Semaphore* inBufferReady;			// input buffer ready semaphore
 
 extern Semaphore* tics10sec;				// 10 second semaphore
-extern Semaphore* tics1sec;					// 1 second semaphore
-extern Semaphore* tics10thsec;				// 1/10 second semaphore
+//extern Semaphore* tics1sec;					// 1 second semaphore
+//extern Semaphore* tics10thsec;				// 1/10 second semaphore
 
 extern char inChar;				// last entered character
 extern int charFlag;				// 0 => buffered input

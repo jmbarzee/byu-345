@@ -124,6 +124,7 @@ int parseString(int* newArgc, char** newArgv) {
 			return 1;
 		}
 	}
+	return 1;
 }
 
 int parseWhiteSpace(int* newArgc, char** newArgv) {
