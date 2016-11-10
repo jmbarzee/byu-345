@@ -36,7 +36,9 @@
 //	local prototypes
 //
 void pollInterrupts(void);
-static int scheduler(void);
+static int scheduler_Priority(void);
+static int scheduler_Slices(void);
+static void spreadSlices(Tid parent, int slices);
 static int dispatcher(void);
 
 int sysKillTask(int taskId);
@@ -160,7 +162,11 @@ int main(int argc, char* argv[])
 		pollInterrupts();
 
 		// schedule highest priority ready task
-		if (scheduler() < 0) continue;
+		if (scheduler_mode) {
+			if (scheduler_Slices() < 0) continue;
+		} else {
+			if (scheduler_Priority() < 0) continue;
+		}
 
 		// dispatch curTask, quit OS if negative return
 		if (dispatcher() < 0) break;
@@ -178,7 +184,7 @@ int main(int argc, char* argv[])
 // **********************************************************************
 // scheduler
 //
-static int scheduler()
+static int scheduler_Priority()
 {
 	Tid tid = next(rQueue);
 	if (tid == -1)
@@ -187,7 +193,37 @@ static int scheduler()
 	if (tcb[getCurTask()].signal & mySIGSTOP)
 		return -1;
 	return curTask;
-} // end scheduler
+} // end Priority scheduler
+
+static int scheduler_Slices()
+{
+	Tid tid = nextSlices(rQueue);
+	if (tid == -1) {
+		if (rQueue->size > 0)
+			spreadSlices(0, rQueue->size * 50);
+		return -1;
+	}
+	setCurTask(tid);
+	if (tcb[getCurTask()].signal & mySIGSTOP)
+		return -1;
+	return curTask;
+} // end Slices scheduler
+
+static void spreadSlices(Tid parent, int slices) {
+	Tid children[MAX_TASKS];
+	int cnt = 0;
+	for (Tid tid = 0; tid < MAX_TASKS; tid++) {
+		if (taskName(tid) != 0 &&
+				taskParent(tid) == parent &&
+				tid != parent) {
+			children[cnt++] = tid;
+		}
+	}
+	setSlices(parent, slices/(cnt+1));
+	for (int i=0; i<cnt; i++) {
+		spreadSlices(children[i], slices/(cnt+1));
+	}
+}
 
 void setCurTask(Tid tid) {
 	//printf("setCurTask(t: %i  p: %i)\n", tid, taskPriority(tid));
@@ -298,6 +334,7 @@ void swapTask()
 
 	// increment swap cycle counter
 	swapCount++;
+	dropSlice(getCurTask());
 
 	// either save current task context or schedule task (return)
 	if (setjmp(tcb[curTask].context))

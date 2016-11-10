@@ -94,6 +94,7 @@ typedef struct							// task control block
 	int (*task)(int,char**);			// task address
 	int state;							// task state
 	int priority;						// task priority (project 2)
+	int slices;							// task compute time allotment
 	int argc;							// task argument count (project 1)
 	char** argv;						// task argument pointers (project 1)
 	int signal;							// task signals (project 1)
@@ -103,7 +104,7 @@ typedef struct							// task control block
 	void (*sigTermHandler)(void);	// task mySIGTERM handler
 	void (*sigTstpHandler)(void);	// task mySIGTSTP handler
 	Tid parent;							// task parent
-	int RPT;							// task root page table (project 5)
+	int RPT;							// task root page table (project 4)
 	int cdir;							// task directory (project 6)
 	Semaphore *event;					// blocked task semaphore
 	void* stack;						// task stack
@@ -119,6 +120,12 @@ typedef struct							// task control block
 int createTask(char*, int (*)(int, char**), int, int, char**);
 
 int taskPriority(Tid tid);			// accessor for tcb[tid].priority
+Tid taskParent(Tid tid);			// accessor for tcb[tid].parent
+char* taskName(Tid tid);			// accessor for tcb[tid].name
+
+int getSlices(Tid tid);
+int dropSlice(Tid tid);
+void setSlices(Tid tid, int newSlices);
 
 void setCurTask(Tid tid);
 Tid getCurTask(void);

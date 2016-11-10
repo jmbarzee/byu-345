@@ -44,8 +44,8 @@ extern Semaphore* charReady;				// character has been entered
 extern Semaphore* inBufferReady;			// input buffer ready semaphore
 
 extern Semaphore* tics10sec;				// 10 second semaphore
-//extern Semaphore* tics1sec;					// 1 second semaphore
-//extern Semaphore* tics10thsec;				// 1/10 second semaphore
+extern Semaphore* tics1sec;					// 1 second semaphore
+extern Semaphore* tics10thsec;				// 1/10 second semaphore
 
 extern char inChar;				// last entered character
 extern int charFlag;				// 0 => buffered input
@@ -169,7 +169,7 @@ static void timer_isr() {
 	// one second timer
 	if ((currentTime - oldTime1) >= ONE_SECOND) {
 		// signal 1 second
-		//semSignal(tics1sec);
+		semSignal(tics1sec);
 		oldTime1 += 1;
 	}
 
@@ -184,7 +184,7 @@ static void timer_isr() {
 	myClkTime = clock();
 	if ((myClkTime - myOldClkTime) >= ONE_TENTH_SEC) {
 		myOldClkTime = myOldClkTime + ONE_TENTH_SEC;   // update old
-		//semSignal(tics10thsec);
+		semSignal(tics10thsec);
 	}
 
 	return;

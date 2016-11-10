@@ -29,6 +29,8 @@ Tid pull(PQ* q, int tid);
 Tid next(PQ* q);
 Tid pop(PQ* q);
 
+Tid nextSlices(PQ* q);
+
 void put(PQ* q, Tid tid);
 
 Tid ready(PQ* src, PQ* dst);

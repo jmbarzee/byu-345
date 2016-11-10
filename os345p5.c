@@ -64,16 +64,16 @@ int P5_project5(int argc, char* argv[])		// project 5
 	if (argc > 1)
 	{
 		scheduler_mode = atoi(argv[1]);
-		printf("\nScheduler Mode = %d (%s)", scheduler_mode, scheduler_mode ? "FSS" : "RR");
+		printf("Scheduler Mode = %d (%s)\n", scheduler_mode, scheduler_mode ? "FSS" : "RR");
 		return 0;
 	}
 
-	printf("\nStarting Project 5");
+	printf("Starting Project 5\n");
 
 	for (i = 0; i < NUM_PARENTS; ++i)
 	{
 		num_siblings[i] = (rand() % 25) + 1;
-		printf("\nGroup[%d] = %d", i, num_siblings[i]);
+		printf("Group[%d] = %d\n", i, num_siblings[i]);
 	}
 
 	childALive = createSemaphore("childALive", BINARY, 0);
@@ -92,7 +92,7 @@ int P5_project5(int argc, char* argv[])		// project 5
 		new_argv[1] = arg2;
 		new_argv[2] = arg3;
 
-		printf("\nCreate %s with %d child%s", arg1, atoi(arg3), (atoi(arg3) == 1 ? "" : "ren"));
+		printf("Create %s with %d child%s\n", arg1, atoi(arg3), (atoi(arg3) == 1 ? "" : "ren"));
 		createTask(new_argv[0]				// task name
 				 , parentTask,				// parent task
 				   MED_PRIORITY,			// priority

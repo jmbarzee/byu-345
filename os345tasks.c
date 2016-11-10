@@ -108,6 +108,37 @@ int taskPriority(Tid tid) {
 	return tid;
 }
 
+Tid taskParent(Tid tid) {
+	if (tid > -1)
+		return tcb[tid].parent;
+	return tid;
+}
+
+char* taskName(Tid tid) {
+	if (tid > -1)
+		return tcb[tid].name;
+	return 0;
+}
+
+int getSlices(Tid tid) {
+	if (tid > -1)
+		return tcb[tid].slices;
+	return tid;
+}
+
+int dropSlice(Tid tid) {
+	if (tid > -1)
+		return --tcb[tid].slices;
+	return tid;
+}
+
+void setSlices(Tid tid, int newSlices) {
+	if (tid > -1)
+		tcb[tid].slices = newSlices;
+}
+
+
+
 
 
 // **********************************************************************
@@ -191,6 +222,18 @@ int sysKillTask(Tid tid)
 
 	for (int i=0; i<tcb[tid].argc; i++) free((tcb[tid].argv)[i]);
 	free(tcb[tid].argv);
+
+	Tid cid = -1;
+	for (Tid id = 0; id < MAX_TASKS; id++) {
+		if (taskName(id) != 0 && taskParent(id) == tid) {
+			if (cid == -1) {
+				cid = id;
+				tcb[cid].parent = tcb[tid].parent;
+			} else {
+				tcb[id].parent = cid;
+			}
+		}
+	}
 
 	pull(rQueue, tid); // ?? delete task from system queues
 	setCurTask(0);
