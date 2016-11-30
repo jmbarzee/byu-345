@@ -1,8 +1,6 @@
 // os345park.h
 #ifndef __os345park_h__
 #define __os345park_h__
-// ***********************************************************************
-// jurassic defines
 
 #define NUM_CARS		4
 #define NUM_DRIVERS		4
@@ -16,9 +14,7 @@
 #define MAX_IN_MUSEUM	5
 #define MAX_IN_GIFTSHOP	2
 
-//#define ParkDebug(s) printf("\n%s: %s", TASK_NAME, s);
 #define ParkDebug(s) printf("\n%s: %s", "TASK_NAME", s);
-//#define ParkDebug(s) SWAP;
 #define CLEAR_SCREEN	//system("cls");
 
 // ***********************************************************************

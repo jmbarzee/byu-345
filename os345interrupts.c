@@ -87,17 +87,14 @@ void pollInterrupts(void) {
 // keyboard interrupt service routine
 //
 static void keyboard_isr() {
-	debugPrint('i', 'f', "key_board\n");
 	// assert system mode
 	assert("keyboard_isr Error" && superMode);
 
 	semSignal(charReady);					// SIGNAL(charReady) (No Swap)
 	if (charFlag == 0) {
-		debugPrint('i', 'k', "char -  %04x, %c\n", inChar, inChar);
 		switch (inChar) {
 		case '\r':
 		case '\n': {
-			debugPrint('i', 'r', "respond - newline\n");
 			printf("%c", inChar);
 			inBufIndx = 0;				// EOL, signal line ready
 			semSignal(inBufferReady);	// SIGNAL(inBufferReady)
@@ -105,7 +102,6 @@ static void keyboard_isr() {
 		}
 		case 0x12:						// ^r
 		{
-			debugPrint('i', 'r', "respond - ctrl+r\n");
 			clearSignal(-1, mySIGTSTP);
 			clearSignal(-1, mySIGSTOP);
 			sigSignal(-1, mySIGCONT);	// resume all tasks
@@ -113,13 +109,11 @@ static void keyboard_isr() {
 		}
 		case 0x17:						// ^w
 		{
-			debugPrint('i', 'r', "respond - ctrl+w\n");
 			sigSignal(-1, mySIGTSTP);	// pause all tasks
 			break;
 		}
 		case 0x18:						// ^x
 		{
-			debugPrint('i', 'r', "respond - ctrl+x\n");
 			inBufIndx = 0;
 			inBuffer[0] = 0;
 			sigSignal(0, mySIGINT);		// halt all tasks
@@ -128,7 +122,6 @@ static void keyboard_isr() {
 		}
 		case 0x7f:						// ^x
 		{
-			debugPrint('i', 'r', "respond - backspace\n");
 			if (inBufIndx > 0) {
 				printf("\b \b");
 				inBuffer[inBufIndx--] = '\0';
@@ -137,7 +130,6 @@ static void keyboard_isr() {
 		}
 		default: {
 			if (inBufIndx < INBUF_SIZE - 1) {
-				debugPrint('i', 'r', "respond - default\n");
 				printf("%c", inChar);
 				inBuffer[inBufIndx++] = inChar;
 				inBuffer[inBufIndx] = 0;

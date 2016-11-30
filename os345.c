@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
 
 		case POWER_DOWN_RESTART:			// restart
 			powerDown(resetCode);
-			printf("\nRestarting system...\n");
+			printf("\n\nRestarting system...");
 			break;
 
 		case POWER_UP:						// startup
@@ -226,12 +226,12 @@ static void spreadSlices(Tid parent, int slices) {
 }
 
 void setCurTask(Tid tid) {
-	//printf("setCurTask(t: %i  p: %i)\n", tid, taskPriority(tid));
+	//printf("\nsetCurTask(t: %i  p: %i)", tid, taskPriority(tid));
 	curTask = tid;
 }
 
 Tid getCurTask(void) {
-	//printf("getCurTask(t: %i  p: %i)\n", curTask, taskPriority(curTask));
+	//printf("\ngetCurTask(t: %i  p: %i)", curTask, taskPriority(curTask));
 	return curTask;
 }
 
@@ -251,7 +251,7 @@ static int dispatcher()
 		case S_NEW:
 		{
 			// new task
-			printf("New Task[%d] %s\n", curTask, tcb[curTask].name);
+			printf("\nNew Task[%d] %s", curTask, tcb[curTask].name);
 			tcb[curTask].state = S_RUNNING;	// set task to run state
 
 			// save kernel context for task SWAP's
@@ -270,8 +270,8 @@ static int dispatcher()
 			result = (*tcb[curTask].task)(tcb[curTask].argc, tcb[curTask].argv);
 
 			// task has completed
-			if (result) printf("Task[%d] returned %d\n", curTask, result);
-			else printf("Task[%d] returned %d\n", curTask, result);
+			if (result) printf("\nTask[%d] returned %d", curTask, result);
+			else printf("\nTask[%d] returned %d", curTask, result);
 			tcb[curTask].state = S_EXIT;			// set task to exit state
 
 			// return to kernal mode

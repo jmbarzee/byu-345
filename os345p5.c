@@ -98,7 +98,7 @@ int P5_project5(int argc, char* argv[])		// project 5
 				   MED_PRIORITY,			// priority
 				   3,						// argc
 				   new_argv);				// argv
-		SEM_WAIT(parentDead);				// wait for parent to die
+		semWait(parentDead);				// wait for parent to die
 	}
 
 	// create reporting task
@@ -134,9 +134,9 @@ int parentTask(int argc, char* argv[])		// group 1
 				MED_PRIORITY,				// priority
 				3,							// task argc
 				argv);						// task argument pointers
-		SEM_WAIT(childALive);				// wait until child is going
+		semWait(childALive);				// wait until child is going
 	}
-	SEM_SIGNAL(parentDead);					// parent dies
+	semSignal(parentDead);					// parent dies
 
 //	while (1) SWAP;							// keep parent alive
 	while (1)
@@ -165,7 +165,7 @@ int childTask(int argc, char* argv[])		// child Task
 		return 0;							// die!!
 	}
 
-	SEM_SIGNAL(childALive);					// child is alive!!
+	semSignal(childALive);					// child is alive!!
 	// count # of times scheduled
 	while (1)
 	{
@@ -192,7 +192,7 @@ int groupReportTask(int argc, char* argv[])
 		while (count-- > 0)
 		{
 		   	// update every second
-			SEM_WAIT(tics1sec);
+			semWait(tics1sec);
 
 		}
 

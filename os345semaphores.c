@@ -41,7 +41,7 @@ extern Semaphore* semaphoreList;			// linked list of active semaphores
 //	else signal semaphore
 //
 void semSignal(Semaphore* s) {
-	//printf("SemSignal(%s)\n", s->name);
+	//printf("\nSemSignal(%s)", s->name);
 	// assert there is a semaphore and it is a legal type
 	assert("semSignal Error" && s && ((s->type == 0) || (s->type == 1)));
 
@@ -63,9 +63,8 @@ void semSignal(Semaphore* s) {
 			tcb[tid].event = 0;			// clear event pointer
 			tcb[tid].state = S_READY;	// unblock task
 		} else {
-			// nothing waiting, signal
+			s->state++;						// increment counting semaphore
 		}
-		s->state++;						// increment counting semaphore
 		if (!superMode)
 			swapTask();
 		return;
@@ -80,7 +79,7 @@ void semSignal(Semaphore* s) {
 //	else block task
 //
 int semWait(Semaphore* s) {
-	//printf("SemWait(%s)\n", s->name);
+	//printf("\nSemWait(%s)", s->name);
 	assert("semWait Error" && s);							// assert semaphore
 	assert("semWait Error" && ((s->type == 0) || (s->type == 1)));// assert legal type
 	assert("semWait Error" && !superMode);					// assert user mode
@@ -105,7 +104,6 @@ int semWait(Semaphore* s) {
 
 			block(rQueue, s->pq, getCurTask());
 
-			s->state = 0;					// reset state
 			swapTask();						// reschedule the tasks
 			return 1;
 		} else {
@@ -115,32 +113,30 @@ int semWait(Semaphore* s) {
 	}
 } // end semWait
 
-// **********************************************************************
-// **********************************************************************
 // try to wait on semaphore
-//
-//	if semaphore is signaled, return 1
+//	if semaphore is availible, return 1
 //	else return 0
-//
 int semTryLock(Semaphore* s) {
+	//printf("\nSemTryLock(%s)", s->name);
 	assert("semTryLock Error" && s);						// assert semaphore
 	assert("semTryLock Error" && ((s->type == 0) || (s->type == 1)));// assert legal type
 	assert("semTryLock Error" && !superMode);				// assert user mode
 
 	// check semaphore type
 	if (s->type == BINARY) {
-		// binary semaphore
-		// if state is zero, then block task
-
-		if (s->state == 0) {
+		if (s->state == 0 || s->pq->size > 0) {
 			return 0;
+		} else {
+			s->state = 0;
+			return 1;
 		}
-		// state is non-zero (semaphore already signaled)
-		s->state = 0;						// reset state, and don't block
-		return 1;
 	} else {
-		return 1;
-		//counting semaphore
+		if (s->state < 1 || s->pq->size > 0) {
+			return 0;
+		} else {
+			s->state--;
+			return 1;
+		}
 	}
 } // end semTryLock
 
@@ -154,17 +150,17 @@ int semTryLock(Semaphore* s) {
 // Note: memory must be released when the OS exits.
 //
 Semaphore* createSemaphore(char* name, int type, int state) {
-	//printf("createSemaphore(%s) -> t:%i\n", name, curTask->tid);
+	//printf("\ncreateSemaphore(%s) -> t:%i", name, curTask->tid);
 	Semaphore* sem = semaphoreList;
 	Semaphore** semLink = &semaphoreList;
 
 	// assert semaphore is binary or counting
-	assert("createSemaphore Error" && ((type == 0) || (type == 1)));// assert type is validate
+	assert("createSemaphore Error" && ((type == 0) || (type == 1))); // assert type is validate
 
 	// look for duplicate name
 	while (sem) {
 		if (!strcmp(sem->name, name)) {
-			printf("Semaphore %s already defined\n", sem->name);
+			printf("\nSemaphore %s already defined", sem->name);
 			// semaphore found - change to new state
 			if (sem->type == type) {
 				return sem;
@@ -199,7 +195,7 @@ Semaphore* createSemaphore(char* name, int type, int state) {
 // Delete semaphore and free its resources
 //
 bool deleteSemaphore(Semaphore** semaphore) {
-	//printf("deleteSemaphore(%s) -> t:%i\n", (*semaphore)->name, curTask->tid);
+	//printf("\ndeleteSemaphore(%s) -> t:%i", (*semaphore)->name, curTask->tid);
 	Semaphore* sem = semaphoreList;
 	Semaphore** semLink = &semaphoreList;
 
@@ -213,7 +209,7 @@ bool deleteSemaphore(Semaphore** semaphore) {
 			*semLink = (Semaphore*) sem->semLink;
 
 			// free the name array before freeing semaphore
-			printf("deleteSemaphore(%s)\n", sem->name);
+			printf("\ndeleteSemaphore(%s)", sem->name);
 			free(sem->name);
 			free(sem->pq);
 			// ?? What should you do if there are tasks in this

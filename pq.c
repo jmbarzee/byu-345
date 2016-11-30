@@ -42,7 +42,7 @@ PQ* newPqueue(int cap, char* name) {
 		ret->content = 0;
 	} else {
 		ret->cap = cap;
-		ret->content = malloc(sizeof(PQ) * (cap));
+		ret->content = malloc(sizeof(Tid) * (cap));
 	}
 	return ret;
 }

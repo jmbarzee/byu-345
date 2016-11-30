@@ -26,9 +26,9 @@
 #include "os345park.h"
 
 JPARK myPark;
-Semaphore* parkMutex;						// mutex park variable access
+Semaphore* parkMutex;					// mutex park variable access
 Semaphore* fillSeat[NUM_CARS];			// (signal) seat ready to fill
-Semaphore* seatFilled[NUM_CARS];			// (wait) passenger seated
+Semaphore* seatFilled[NUM_CARS];		// (wait) passenger seated
 Semaphore* rideOver[NUM_CARS];			// (signal) ride over
 
 extern Semaphore* tics1sec;				// 1 second semaphore
@@ -80,8 +80,7 @@ int jurassicTask(int argc, char* argv[])
 	moveCars = createSemaphore("moveCar", BINARY, 0);		SWAP;
 
 	// initialize communication semaphores
-	for (i=0; i < NUM_CARS; i++)
-	{
+	for (i=0; i < NUM_CARS; i++) {
 		sprintf(buf, "fillSeat%d", i);						SWAP;
 		fillSeat[i] = createSemaphore(buf, BINARY, 0);		SWAP;
 		sprintf(buf, "seatFilled%d", i);					SWAP;
@@ -107,12 +106,9 @@ int jurassicTask(int argc, char* argv[])
 		1,								// task count
 		argv);						// task argument
 
-	// wait to move cars
-	do
-	{
+	do {
    	// wait for signal to move cars
-		ParkDebug("SEM_WAIT(moveCars)");
-		SEM_WAIT(moveCars);									SWAP;
+		semWait(moveCars);									SWAP;
 
 		// order car locations
 		for (i=0; i<NUM_CARS; i++)
@@ -146,13 +142,9 @@ int jurassicTask(int argc, char* argv[])
 				    (myPark.numInCarLine) )
 				{
 					// need a passenger
-					sprintf(buf, "SEM_SIGNAL(fillSeat[%d])", c[i]);
-					ParkDebug(buf);
-					SEM_SIGNAL(fillSeat[c[i]]);					SWAP;	// seat open
+					semSignal(fillSeat[c[i]]);					SWAP;	// seat open
 
-					sprintf(buf, "SEM_WAIT(seatFilled[%d])", c[i]);
-					ParkDebug(buf);
-					SEM_WAIT(seatFilled[c[i]]);					SWAP;	// passenger in seat
+					semWait(seatFilled[c[i]]);					SWAP;	// passenger in seat
 					myPark.cars[c[i]].passengers++;				SWAP;
 				}
 
@@ -166,9 +158,7 @@ int jurassicTask(int argc, char* argv[])
 					// if car empty, signal ride over
 					if (--myPark.cars[c[i]].passengers == 0)
 					{
-						sprintf(buf, "SEM_SIGNAL(rideOver[%d])", c[i]);
-						ParkDebug(buf);
-						SEM_SIGNAL(rideOver[c[i]]);				SWAP;
+						semSignal(rideOver[c[i]]);				SWAP;
 					}
 				}
 
@@ -318,18 +308,18 @@ int jurassicDisplayTask(int argc, char* argv[])
 		JPARK currentPark;
 
    	// update every second
-		SEM_WAIT(tics1sec);											SWAP;
+		semWait(tics1sec);											SWAP;
 
 		// take snapshot of park
-		SEM_WAIT(parkMutex);										SWAP;
+		semWait(parkMutex);										SWAP;
 		currentPark = myPark;										SWAP;
-		SEM_SIGNAL(parkMutex);										SWAP;
+		semSignal(parkMutex);										SWAP;
 
 		// draw current park
 		drawPark(&currentPark);										SWAP;
 
 		// signal for cars to move
-		SEM_SIGNAL(moveCars);										SWAP;
+		semSignal(moveCars);										SWAP;
 
 	} while (myPark.numExitedPark < NUM_VISITORS);
 
@@ -498,55 +488,55 @@ void drawPark(JPARK *park)
 	for (i=0; i<NUM_CARS; i++)
 	{
 		// draw car
-		j = park->cars[i].location;												SWAP;
+		j = park->cars[i].location;											SWAP;
 		switch (cp[j][2])
 		{
 			// horizontal
 			case 0:
 			{
-				pk[cp[j][0]][cp[j][1]+0] = 'o';									SWAP;
-				pk[cp[j][0]][cp[j][1]+1] = 'A'+i;								SWAP;
-				pk[cp[j][0]][cp[j][1]+2] = 'o';									SWAP;
+				pk[cp[j][0]][cp[j][1]+0] = 'o';								SWAP;
+				pk[cp[j][0]][cp[j][1]+1] = 'A'+i;							SWAP;
+				pk[cp[j][0]][cp[j][1]+2] = 'o';								SWAP;
 				break;
 			}
 			// vertical
 			case 1:
 			{
-				pk[cp[j][0]+0][cp[j][1]] = 'o';									SWAP;
+				pk[cp[j][0]+0][cp[j][1]] = 'o';								SWAP;
 
 				//pk[cp[j][0]+1][cp[j][1]] = 'A'+i;
 				//if ((park->cars[i].passengers > 0) && (park->cars[i].passengers < NUM_SEATS))
 				if ((park->cars[i].passengers > 0) &&
 					((j == 30) || (j == 33)))
 				{
-					pk[cp[j][0]+1][cp[j][1]] = '0'+park->cars[i].passengers;	SWAP;
+					pk[cp[j][0]+1][cp[j][1]] = '0'+park->cars[i].passengers;SWAP;
 				}
-				else pk[cp[j][0]+1][cp[j][1]] = 'A'+i;							SWAP;
+				else pk[cp[j][0]+1][cp[j][1]] = 'A'+i;						SWAP;
 
-				pk[cp[j][0]+2][cp[j][1]] = 'o';									SWAP;
+				pk[cp[j][0]+2][cp[j][1]] = 'o';								SWAP;
 				break;
 			}
 			case 2:
 			{
-				pk[cp[j][0]+0][cp[j][1]+0] = 'o';								SWAP;
-				pk[cp[j][0]+1][cp[j][1]+1] = 'A'+i;								SWAP;
-				pk[cp[j][0]+2][cp[j][1]+2] = 'o';								SWAP;
+				pk[cp[j][0]+0][cp[j][1]+0] = 'o';							SWAP;
+				pk[cp[j][0]+1][cp[j][1]+1] = 'A'+i;							SWAP;
+				pk[cp[j][0]+2][cp[j][1]+2] = 'o';							SWAP;
 				break;
 			}
 			case 3:
 			{
-				pk[cp[j][0]+0][cp[j][1]-0] = 'o';								SWAP;
-				pk[cp[j][0]+1][cp[j][1]-1] = 'A'+i;								SWAP;
-				pk[cp[j][0]+2][cp[j][1]-2] = 'o';								SWAP;
+				pk[cp[j][0]+0][cp[j][1]-0] = 'o';							SWAP;
+				pk[cp[j][0]+1][cp[j][1]-1] = 'A'+i;							SWAP;
+				pk[cp[j][0]+2][cp[j][1]-2] = 'o';							SWAP;
 				break;
 			}
 		}
 	}
 
 	// move dinosaur #1
-	dy1 = dy1 + (rand()%3) - 1;													SWAP;
-	if (dy1 < D1Upper) dy1 = D1Upper;											SWAP;
-	if (dy1 > D1Lower) dy1 = D1Lower;											SWAP;
+	dy1 = dy1 + (rand()%3) - 1;												SWAP;
+	if (dy1 < D1Upper) dy1 = D1Upper;										SWAP;
+	if (dy1 > D1Lower) dy1 = D1Lower;										SWAP;
 
 	if (direction1 > 0)
 	{
@@ -559,7 +549,7 @@ void drawPark(JPARK *park)
 	{
 		if ((rand()%3) == 1)
 		{
-			memcpy(&pk[dy1+0][-direction1+4], "...", 3);						SWAP;
+			memcpy(&pk[dy1+0][-direction1+4], "...", 3);					SWAP;
 			memcpy(&pk[dy1+1][-direction1+1], "__/|||\\___", 10);			SWAP;
 			memcpy(&pk[dy1+2][-direction1+0], "O  x   x", 8);				SWAP;
 		}
@@ -575,20 +565,20 @@ void drawPark(JPARK *park)
 	// move dinosaur #2
 
 	dy2 = dy2 + (rand()%3) - 1;
-	if (dy2 < D2Upper) dy2 = D2Upper;											SWAP;
-	if (dy2 > D2Lower) dy2 = D2Lower;											SWAP;
-	dy2 = (dy2+9) >= dy1 ? dy1-9 : dy2;											SWAP;
+	if (dy2 < D2Upper) dy2 = D2Upper;										SWAP;
+	if (dy2 > D2Lower) dy2 = D2Lower;										SWAP;
+	dy2 = (dy2+9) >= dy1 ? dy1-9 : dy2;										SWAP;
 
 	if (direction2 > 0)
 	{
-		memcpy(&pk[dy2+0][direction2+7], "_", 1);								SWAP;
-		memcpy(&pk[dy2+1][direction2+6], "/o\\", 3);							SWAP;
+		memcpy(&pk[dy2+0][direction2+7], "_", 1);							SWAP;
+		memcpy(&pk[dy2+1][direction2+6], "/o\\", 3);						SWAP;
 		memcpy(&pk[dy2+2][direction2+4], "</ _<", 5);						SWAP;
-		memcpy(&pk[dy2+3][direction2+3], "</ /", 4);							SWAP;
+		memcpy(&pk[dy2+3][direction2+3], "</ /", 4);						SWAP;
 		memcpy(&pk[dy2+4][direction2+2], "</ ==x", 6);						SWAP;
 		memcpy(&pk[dy2+5][direction2+3], "/  \\", 4);						SWAP;
 		memcpy(&pk[dy2+6][direction2+2], "//)__)", 6);						SWAP;
-		memcpy(&pk[dy2+7][direction2+0], "<<< \\_ \\_", 9);				SWAP;
+		memcpy(&pk[dy2+7][direction2+0], "<<< \\_ \\_", 9);					SWAP;
 		if (++direction2 > D2Right) direction2 = -direction2;				SWAP;
 	}
 	else
@@ -604,11 +594,9 @@ void drawPark(JPARK *park)
 		if (++direction2 > -D2Left) direction2 = -direction2;				SWAP;
 	}
 
-	// draw park
-	CLEAR_SCREEN;																		SWAP;
-	printf("\n");																		SWAP;
+	printf("\n");															SWAP;
 	for (i=0; i<25; i++) printf("\n%s", &pk[i][0]);							SWAP;
-	printf("\n");																		SWAP;
+	printf("\n");															SWAP;
 
 	// driver in only one place at a time
 	for (i=0; i<(NUM_DRIVERS-1); i++)
@@ -627,8 +615,6 @@ void drawPark(JPARK *park)
 
 
 
-// ***********************************************************************
-// ***********************************************************************
 // lostVisitor task
 // ***********************************************************************
 int lostVisitorTask(int argc, char* argv[])
@@ -638,7 +624,7 @@ int lostVisitorTask(int argc, char* argv[])
 	while (myPark.numExitedPark < NUM_VISITORS)
 	{
 		// number in park
-		SEM_WAIT(parkMutex);												SWAP;
+		semWait(parkMutex);												SWAP;
 		inPark = myPark.numInTicketLine +
 					myPark.numInMuseumLine +
 					myPark.numInMuseum +
@@ -666,7 +652,7 @@ int lostVisitorTask(int argc, char* argv[])
 
 			assert("Too few in Park!" && (inPark == myPark.numInPark));
 		}
-		SEM_SIGNAL(parkMutex);											SWAP;
+		semSignal(parkMutex);											SWAP;
 	}
 	return 0;
 } // end lostVisitorTask

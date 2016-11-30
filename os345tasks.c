@@ -198,7 +198,7 @@ int sysKillTask(Tid tid)
 
 	// assert that you are not pulling the rug out from under yourself!
 	assert("sysKillTask Error" && tcb[tid].name && superMode);
-	printf("Kill Task %s\n", tcb[tid].name);
+	printf("\nKill Task %s", tcb[tid].name);
 
 	// signal task terminated
 	semSignal(taskSems[tid]);

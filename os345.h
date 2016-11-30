@@ -15,17 +15,6 @@
 #define SWAP swapTask();
 
 // ***********************************************************************
-// Thread-safe extensions: delete _s if desired
-//#define SPRINTF sprintf_s
-//#define STRCAT strcat_s
-
-// ***********************************************************************
-// Semaphore directives
-#define SEM_WAIT(s)			semWait(s);
-#define SEM_SIGNAL(s)		semSignal(s);
-#define SEM_TRYLOCK(s)		semTryLock(s);
-
-// ***********************************************************************
 // Miscellaneous directives
 #define INTEGER(s)	((s)?(isdigit(*s)||(*s=='-')?(int)strtol(s,0,0):0):0)
 
@@ -244,15 +233,5 @@ void initLC3Memory(int startFrame, int endFrame);
 int lc3Task(int, char**);
 
 void debugPrint(char category, char type, char* fmt, ...);
-
-extern bool printParser;
-extern bool printParserReads;
-extern bool printInterrupts;
-extern bool printInterruptKeystrokes;
-extern bool printSignals;
-
-extern bool printfnNames;
-extern bool printMallocs;
-extern bool printErrors;
 
 #endif // __os345_h__

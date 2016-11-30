@@ -169,7 +169,7 @@ int P2_listSems(int argc, char* argv[])				// listSemaphores
 	Semaphore* sem = semaphoreList;
 	while (sem) {
 		if ((argc == 1) || match(argv[1], sem->name)) {
-			printf("%20s  %c  %d  %s\n", sem->name, (sem->type ? 'C' : 'B'),
+			printf("%30s  %c  %d  %s\n", sem->name, (sem->type ? 'C' : 'B'),
 					sem->state, tcb[sem->taskNum].name);
 		}
 		sem = (Semaphore*) sem->semLink;
@@ -211,13 +211,13 @@ int P2_killTask(int argc, char* argv[])			// kill task
 // ***********************************************************************
 int P2_signal1(int argc, char* argv[])		// signal1
 {
-	SEM_SIGNAL(s1Sem);
+	semSignal(s1Sem);
 	return 0;
 } // end signal
 
 int P2_signal2(int argc, char* argv[])		// signal2
 {
-	SEM_SIGNAL(s2Sem);
+	semSignal(s2Sem);
 	return 0;
 } // end signal
 
@@ -236,7 +236,7 @@ int signalTask(int argc, char* argv[]) {
 
 	// loop waiting for semaphore to be signaled
 	while (count < COUNT_MAX) {
-		SEM_WAIT(*mySem);			// wait for signal
+		semWait(*mySem);			// wait for signal
 		printf("%s  Task[%d], count=%d\n", tcb[getCurTask()].name, getCurTask(),
 				++count);
 	}
@@ -265,7 +265,7 @@ int wait10SecTask(int argc, char* argv[]) {
 
 	// loop waiting for semaphore to be signaled
 	while (1) {
-		SEM_WAIT(tics10sec);		// wait for signal
+		semWait(tics10sec);		// wait for signal
 		printf("%s  Task[%d], count=%d\n", tcb[getCurTask()].name, getCurTask(),
 				++count);
 	}

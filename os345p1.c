@@ -84,13 +84,11 @@ int P1_shellTask(int argc, char* argv[])
 		if (diskMounted) printf("\n%s>>", dirPath);
 		else printf("\n%ld>>", swapCount);
 
-		SEM_WAIT(inBufferReady);			// wait for input buffer semaphore
+		semWait(inBufferReady);			// wait for input buffer semaphore
 		if (!inBuffer[0]) continue;		// ignore blank lines
 		//printf("%s", inBuffer);
 
-		SWAP
 		ParsedLine pline = parseArgs(inBuffer);
-		SWAP
 		newArgc = pline.argc;
 		newArgv = pline.argv;
 		runInBack = pline.runInBackground;
