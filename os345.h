@@ -123,6 +123,10 @@ int killTask(Tid taskId);
 void powerDown(int code);
 void swapTask(void);
 
+void outPTE(char* s, int pte);
+void displayTableHierarchy();
+void displayFrame(int f);
+
 char* myTime(char*);
 
 Semaphore* createSemaphore(char* name, int type, int state);

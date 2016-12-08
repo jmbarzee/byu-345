@@ -1,7 +1,4 @@
-// os345mmu.c - LC-3 Memory Management Unit	03/12/2015
-//
-//		03/12/2015	added PAGE_GET_SIZE to accessPage()
-//
+// os345mmu.c - LC-3 Memory Management Unit
 // **************************************************************************
 // **   DISCLAMER ** DISCLAMER ** DISCLAMER ** DISCLAMER ** DISCLAMER   **
 // **                                                                   **
@@ -28,6 +25,8 @@
 #include "os345.h"
 #include "os345lc3.h"
 
+#define DEBUG_MMU 0
+
 // ***********************************************************************
 // mmu variables
 
@@ -38,11 +37,18 @@ unsigned short int memory[LC3_MAX_MEMORY];
 int memAccess;						// memory accesses
 int memHits;						// memory hits
 int memPageFaults;					// memory faults
+int nextPage;						// swap page size
+int pageReads;						// page reads
+int pageWrites;						// page writes
+int cBigHand;
+int cLittleHand;
 
 int getFrame(int);
+int getClockFrame(int);
 int getAvailableFrame(void);
-extern TCB tcb[];					// task control block
-extern int curTask;					// current task #
+void swapOutFrame(int entry1Index);
+
+void mmuprintf(const char* fmt, ...);
 
 int getFrame(int notme)
 {
@@ -51,9 +57,114 @@ int getFrame(int notme)
 	if (frame >=0) return frame;
 
 	// run clock
-	printf("\nWe're toast!!!!!!!!!!!!");
+    frame = getClockFrame(notme);
 
 	return frame;
+}
+
+int getClockFrame(int notme)
+{
+    int frame;
+
+    // iterate through rpts (0x2400 - LC3_RPT_END)
+    int maxWrap = 20;
+    for (;maxWrap; cBigHand += 2, cLittleHand = 0) {
+        int i;
+        int rpte1;
+        int upta, upte1;
+
+        if (cBigHand >= LC3_RPT_END) {
+            mmuprintf("\nClock is wrapping");
+            cBigHand = LC3_RPT;
+            maxWrap--;
+        }
+
+        rpte1 = memory[cBigHand];
+
+        if (DEFINED(rpte1) && REFERENCED(rpte1)) {
+            // clear reference
+			mmuprintf("\nclearing ref for rpte");
+            memory[cBigHand] = rpte1 = CLEAR_REF(rpte1);
+        } else if (DEFINED(rpte1)) { // if one is non-referenced go to the user page table
+            // scout out the upt!! note that this has not been referenced
+            if (DEBUG_MMU) { outPTE("\nRPT entry being checked - ", cBigHand); }
+            upta = (FRAME(rpte1)<<6);
+
+            for (i = cLittleHand % 64; i < 64;i += 2, cLittleHand = i % 64) { // - iterate over userpage table
+                upte1 = memory[upta + (i)];
+                if (PINNED(upte1) || FRAME(upte1) == notme) {
+                    mmuprintf("\nupte1 frame was the notme frame (%x = %x) or pinned");
+                    if (DEBUG_MMU) { outPTE("UPT entry being checked - ", upta + i); }
+
+                    continue;
+                }
+
+                if (DEFINED(upte1) && REFERENCED(upte1)) { // - if entry is referenced un-reference and move on
+                    // clear reference
+                    mmuprintf("\nclearing ref for upte %d");
+                    memory[cBigHand] = rpte1 = SET_PINNED(rpte1);
+                    memory[upta + (i)] = upte1 = CLEAR_REF(upte1);
+                } else if (DEFINED(upte1)) { // - otherwise prep it for being put into swap
+                    // we can use the frame referenced by upte1
+                    if (DEBUG_MMU) { outPTE("UPT entry being checked - ", upta + 1); }
+                    mmuprintf("\nUpte1 %x, Upte2 %x");
+                    memory[cBigHand] = rpte1 = SET_DIRTY(rpte1);
+                    frame = FRAME(upte1);
+                    swapOutFrame(upta + i);
+                    cLittleHand += 2;
+                    mmuprintf("\nFound a data frame that can be used! (%d, %x)");
+
+                    return frame;
+                }
+            }
+
+            cLittleHand = 0;
+            if (!REFERENCED(rpte1) && !PINNED(rpte1) && FRAME(rpte1) != notme) { // if we only replaced or did nothing to upte entries
+                // we can use the frame referenced by rpte1
+                frame = FRAME(rpte1);
+
+                mmuprintf("\nFound a upt frame that can be used! (%d, %x)");
+                swapOutFrame(cBigHand);
+                cBigHand += 2;
+                return frame;
+            } else { // otherwise remove the pin flag
+                memory[cBigHand] = rpte1 = CLEAR_PINNED(rpte1);
+            }
+
+        }
+    } // when you get the bottom start at the top again
+
+    mmuprintf("\n No valid frame found notme = %d");
+    if (DEBUG_MMU) {  displayTableHierarchy(); }
+
+    return -1;
+}
+
+void swapOutFrame(int entry1Index)
+{
+    // clear the definition bit in entry 1 probably just set entry 1 to 0
+    int entry1, entry2;
+
+    entry1 = memory[entry1Index];
+    entry2 = memory[entry1Index + 1];
+
+    // if dirty bit is not set and swap exists we are done
+    if (DIRTY(entry1) && PAGED(entry2)) {
+        mmuprintf("\nDirty copy of swap write to old page");
+        // if swap exits swap access page with old write
+        accessPage(SWAPPAGE(entry2), FRAME(entry1), PAGE_OLD_WRITE);
+    } else if (!PAGED(entry2)) {
+        mmuprintf("\nNo copy in swap write to new swap");
+        // if swap doesn't exist then we need to write out to an new write
+        memory[entry1Index + 1] = entry2 = SET_PAGED(nextPage);
+        accessPage(nextPage, FRAME(entry1), PAGE_NEW_WRITE);
+    }
+
+    if (DEBUG_MMU) { outPTE("\nSwapped Entry - (Pre-clear) ", entry1Index); }
+    memory[entry1Index] = 0;
+    if (DEBUG_MMU) { outPTE("Swapped Entry - ", entry1Index); }
+
+    return;
 }
 // **************************************************************************
 // **************************************************************************
@@ -72,7 +183,7 @@ int getFrame(int notme)
 //  / / / /     / 	             / /       /
 // F D R P - - f f|f f f f f f f f|S - - - p p p p|p p p p p p p p
 
-#define MMU_ENABLE	0
+#define MMU_ENABLE	1
 
 unsigned short int *getMemAdr(int va, int rwFlg)
 {
@@ -80,23 +191,80 @@ unsigned short int *getMemAdr(int va, int rwFlg)
 	int rpta, rpte1, rpte2;
 	int upta, upte1, upte2;
 	int rptFrame, uptFrame;
+    memAccess += 2;
+
+	rpta = 0x2400 + RPTI(va);
+	rpte1 = memory[rpta];
+	rpte2 = memory[rpta+1];
 
 	// turn off virtual addressing for system RAM
 	if (va < 0x3000) return &memory[va];
 #if MMU_ENABLE
-	rpta = tcb[curTask].RPT + RPTI(va);		// root page table address
-	rpte1 = memory[rpta];					// FDRP__ffffffffff
-	rpte2 = memory[rpta+1];					// S___pppppppppppp
-	if (DEFINED(rpte1))	{ }					// rpte defined
-		else			{ }					// rpte undefined
-	memory[rpta] = SET_REF(rpte1);			// set rpt frame access bit
+	if (DEFINED(rpte1))
+	{
+//        printf("\nUPT frame already defined");
+		// defined
+        memHits++;
+	}
+	else
+	{
+		// fault
+        memPageFaults++;
+		rptFrame = getFrame(-1);
+		rpte1 = SET_DEFINED(rptFrame);
+		if (PAGED(rpte2))
+		{
+            //upt is in swap and we need to read it back in
+			accessPage(SWAPPAGE(rpte2), rptFrame, PAGE_READ);
+		}
+		else
+		{
+            //initialize the upt memory
+            memset(&memory[(rptFrame<<6)], 0, 128);
+		}
+	}
 
-	upta = (FRAME(rpte1)<<6) + UPTI(va);	// user page table address
-	upte1 = memory[upta]; 					// FDRP__ffffffffff
-	upte2 = memory[upta+1]; 				// S___pppppppppppp
-	if (DEFINED(upte1))	{ }					// upte defined
-		else			{ }					// upte undefined
-	memory[upta] = SET_REF(upte1); 			// set upt frame access bit
+
+	memory[rpta] = rpte1 = SET_REF(rpte1);
+	memory[rpta+1] = rpte2;
+
+	upta = (FRAME(rpte1)<<6) + UPTI(va);
+	upte1 = memory[upta];
+	upte2 = memory[upta+1];
+
+	if (DEFINED(upte1))
+	{
+		// defined
+        memHits++;
+	}
+	else
+	{
+		// fault
+        memPageFaults++;
+		uptFrame = getFrame(FRAME(memory[rpta]));
+        memory[rpta] = rpte1 = SET_REF(SET_DIRTY(rpte1));
+        upte1 = SET_DEFINED(uptFrame);
+
+        if (PAGED(upte2))
+		{
+            //get the data frame from swap
+			accessPage(SWAPPAGE(upte2), uptFrame, PAGE_READ);
+		}
+		else
+		{
+            //we don't need to do anything
+            //but we could initialize the mem to 0xf025 which is lc-3 halt instruction
+            memset(&memory[(uptFrame<<6)], 0xf025, 128);
+		}
+	}
+
+    if (rwFlg) {
+        upte1 = SET_DIRTY(upte1);
+    }
+
+    memory[upta] = SET_REF(upte1);
+	memory[upta+1] = upte2;
+
 	return &memory[(FRAME(upte1)<<6) + FRAMEOFFSET(va)];
 #else
 	return &memory[va];
@@ -141,7 +309,7 @@ int getAvailableFrame()
 
 	for (i=0; i<LC3_FRAMES; i++)		// look thru all frames
 	{	if (fmask & 0x0001)
-		{  fmask = 0x8000;				// move to next work
+		{  fmask = 0x8000;				// move to next word
 			adr++;
 			data = MEMWORD(adr);
 		}
@@ -161,57 +329,50 @@ int getAvailableFrame()
 // read/write to swap space
 int accessPage(int pnum, int frame, int rwnFlg)
 {
-	static int nextPage;						// swap page size
-	static int pageReads;						// page reads
-	static int pageWrites;						// page writes
-	static unsigned short int swapMemory[LC3_MAX_SWAP_MEMORY];
+   static unsigned short int swapMemory[LC3_MAX_SWAP_MEMORY];
 
-	if ((nextPage >= LC3_MAX_PAGE) || (pnum >= LC3_MAX_PAGE))
-	{
-		printf("\nVirtual Memory Space Exceeded!  (%d)", LC3_MAX_PAGE);
-		exit(-4);
-	}
-	switch(rwnFlg)
-	{
-		case PAGE_INIT:                    		// init paging
-			memAccess = 0;						// memory accesses
-			memHits = 0;						// memory hits
-			memPageFaults = 0;					// memory faults
-			nextPage = 0;						// disk swap space size
-			pageReads = 0;						// disk page reads
-			pageWrites = 0;						// disk page writes
-			return 0;
+   if ((nextPage >= LC3_MAX_PAGE) || (pnum >= LC3_MAX_PAGE))
+   {
+      printf("\nVirtual Memory Space Exceeded!  (%d) - requested nextPage %d, pnum %d", LC3_MAX_PAGE, nextPage, pnum);
+      exit(-4);
+   }
+   switch(rwnFlg)
+   {
+      case PAGE_INIT:                    		// init paging
+         nextPage = 0;
+         return 0;
 
-		case PAGE_GET_SIZE:                    	// return swap size
-			return nextPage;
+      case PAGE_GET_ADR:                    	// return page address
+         return (int)(&swapMemory[pnum<<6]);
 
-		case PAGE_GET_READS:                   	// return swap reads
-			return pageReads;
+      case PAGE_NEW_WRITE:                   // new write (Drops thru to write old)
+         pnum = nextPage++;
 
-		case PAGE_GET_WRITES:                    // return swap writes
-			return pageWrites;
+      case PAGE_OLD_WRITE:                   // write
+         //printf("\n    (%d) Write frame %d (memory[%04x]) to page %d", p.PID, frame, frame<<6, pnum);
+         memcpy(&swapMemory[pnum<<6], &memory[frame<<6], 1<<7);
+         pageWrites++;
+         return pnum;
 
-		case PAGE_GET_ADR:                    	// return page address
-			return (int)(&swapMemory[pnum<<6]);
+      case PAGE_READ:                    // read
+         //printf("\n    (%d) Read page %d into frame %d (memory[%04x])", p.PID, pnum, frame, frame<<6);
+      	memcpy(&memory[frame<<6], &swapMemory[pnum<<6], 1<<7);
+         pageReads++;
+         return pnum;
 
-		case PAGE_NEW_WRITE:                   // new write (Drops thru to write old)
-			pnum = nextPage++;
-
-		case PAGE_OLD_WRITE:                   // write
-			//printf("\n    (%d) Write frame %d (memory[%04x]) to page %d", p.PID, frame, frame<<6, pnum);
-			memcpy(&swapMemory[pnum<<6], &memory[frame<<6], 1<<7);
-			pageWrites++;
-			return pnum;
-
-		case PAGE_READ:                    	// read
-			//printf("\n    (%d) Read page %d into frame %d (memory[%04x])", p.PID, pnum, frame, frame<<6);
-			memcpy(&memory[frame<<6], &swapMemory[pnum<<6], 1<<7);
-			pageReads++;
-			return pnum;
-
-		case PAGE_FREE:                   // free page
-			printf("\nPAGE_FREE not implemented");
-			break;
+      case PAGE_FREE:                   // free page
+         memset(&memory[(frame<<6)], 0xf025, 128);
+         break;
    }
    return pnum;
 } // end accessPage
+
+
+
+void mmuprintf(const char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	//vprintf(fmt, args); SWAP;
+	fflush(stdout);
+	va_end(args);
+}
