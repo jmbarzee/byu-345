@@ -9,6 +9,9 @@ typedef unsigned int uint32;
 
 //	size_t	uintptr_t
 
+#define FILE_NAME_SIZE_MAX 8
+#define EXTENSION_SIZE_MAX 3
+
 #define SECTORS_PER_DISK	2880
 #define BYTES_PER_SECTOR   512
 #define NUM_FAT_SECTORS		9
@@ -165,6 +168,7 @@ int isValidFileName(char* fileName);
 int fmsChangeDir(char*);
 int fmsGetDirEntry(char*, DirEntry*);
 int fmsGetNextDirEntry(int*, char*, DirEntry*, int);
+int fmsUpdateDirEntry(FDEntry* fdEntry);
 int fmsCloseFile(int);
 int fmsDefineFile(char*, int);
 int fmsDeleteFile(char*);

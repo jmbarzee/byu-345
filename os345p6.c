@@ -1733,7 +1733,6 @@ int fmsGetNextDirEntry(int *dirNum, char* mask, DirEntry* dirEntry, int dir)
 } // end fmsGetNextDirEntry
 
 
-
 // ***************************************************************************************
 // ***************************************************************************************
 int fmsChangeDir(char* dirName)
