@@ -316,7 +316,7 @@ int jurassicDisplayTask(int argc, char* argv[])
 		semSignal(parkMutex);										SWAP;
 
 		// draw current park
-		//drawPark(&currentPark);										SWAP;
+		drawPark(&currentPark);										SWAP;
 
 		// signal for cars to move
 		semSignal(moveCars);										SWAP;

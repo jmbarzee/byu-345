@@ -67,6 +67,7 @@ int printPark(int argc, char* argv[]);
 
 void pnprintf(const char* fmt, ...);
 void ptprintf(const char* fmt, ...);
+void mprintf(const char* fmt, ...);
 
 Semaphore* randSem;					// Extra random semaphore
 
@@ -246,7 +247,7 @@ int driver(int argc, char* argv[]) {
 		} else if (semTryLock(carMechanicNeeded)) {
 			semWait(rideServiceStationMutex); SWAP;
 			driFixCar(id); SWAP;
-			//waitRandom(20, randSem);
+			waitRandom(20, randSem);
 			ptprintf("\n%10s -> carDiagnosed", argv[0]); SWAP;
 			semSignal(carDiagnosed); SWAP;
 			ptprintf("\n%10s -| carRepaired", argv[0]); SWAP;
@@ -255,7 +256,7 @@ int driver(int argc, char* argv[]) {
 		} else if (semTryLock(giftShopSellerNeeded)) {
 			semWait(giftShopPOSMutex); SWAP;
 			driSellMerch(id); SWAP;
-			//waitRandom(20, randSem);
+			waitRandom(20, randSem);
 			ptprintf("\n%10s -> merchSold", argv[0]); SWAP;
 			semSignal(merchSold); SWAP;
 			ptprintf("\n%10s -| merchBought", argv[0]); SWAP;
@@ -318,7 +319,7 @@ int visitor(int argc, char* argv[]) {
 
 
 	ptprintf("\n%10s -> giftShopSellerNeeded", argv[0]); SWAP;
-	semSignal(carMechanicNeeded); SWAP;
+	semSignal(giftShopSellerNeeded); SWAP;
 	ptprintf("\n%10s -> workerNeeded", argv[0]); SWAP;
 	semSignal(workerNeeded); SWAP;
 	ptprintf("\n%10s -| merchSold", argv[0]); SWAP;
@@ -383,43 +384,43 @@ int car(int argc, char* argv[]) {
 		semSignal(seatBelt); SWAP;
 
 
-		/*ptprintf("\n%10s -> carMechanicNeeded", argv[0]); SWAP;
+		ptprintf("\n%10s -> carMechanicNeeded", argv[0]); SWAP;
 		semSignal(carMechanicNeeded); SWAP;
 		ptprintf("\n%10s -> workerNeeded", argv[0]); SWAP;
 		semSignal(workerNeeded); SWAP;
 		ptprintf("\n%10s -| carDiagnosed", argv[0]); SWAP;
 		semWait(carDiagnosed); SWAP;
 		ptprintf("\n%10s -> carRepaired", argv[0]);
-		semSignal(carRepaired);*/
+		semSignal(carRepaired);
 	}
 	return 0;
 } // end car task
 
 void sendLock(Semaphore* lock, Semaphore* sem) {
 	// pass semaphore to car (1 at a time)
-	ptprintf("\n%10s mailbox fetch", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox fetch", taskName(getCurTask())); SWAP;
 	semWait(mailMutex); SWAP;				// wait for mailbox
-	ptprintf("\n%10s mailbox wait on lock", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox wait on lock", taskName(getCurTask())); SWAP;
 	semWait(lock); SWAP;				// wait for passenger request
-	ptprintf("\n%10s mailbox fill", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox fill", taskName(getCurTask())); SWAP;
 	mail = sem; SWAP;					// put semaphore in mailbox
-	ptprintf("\n%10s mailbox signal sent", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox signal sent", taskName(getCurTask())); SWAP;
 	semSignal(mailSent); SWAP;			// raise the mailbox flag
-	ptprintf("\n%10s mailbox wait recieved", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox wait recieved", taskName(getCurTask())); SWAP;
 	semWait(mailAcquired); SWAP;			// wait for delivery
-	ptprintf("\n%10s mailbox release", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox release", taskName(getCurTask())); SWAP;
 	semSignal(mailMutex); SWAP;			// release mailbox
 }
 
 Semaphore* getLock(Semaphore* lock) {
 	// get passenger semaphore
-	ptprintf("\n%10s mailbox signal lock", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox signal lock", taskName(getCurTask())); SWAP;
 	semSignal(lock); SWAP;
-	ptprintf("\n%10s mailbox wait on mail", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox wait on mail", taskName(getCurTask())); SWAP;
 	semWait(mailSent); SWAP;				// wait for mail
-	ptprintf("\n%10s mailbox receive mail", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox receive mail", taskName(getCurTask())); SWAP;
 	Semaphore* ret = mail; SWAP;		// get mail
-	ptprintf("\n%10s mailbox signal acquired", taskName(getCurTask())); SWAP;
+	mprintf("\n%10s mailbox signal acquired", taskName(getCurTask())); SWAP;
 	semSignal(mailAcquired); SWAP;		// put flag down
 	return ret;
 }
@@ -542,7 +543,14 @@ void pnprintf(const char* fmt, ...) {
 void ptprintf(const char* fmt, ...) {
 	va_list args; SWAP;
 	va_start(args, fmt); SWAP;
-	vprintf(fmt, args); SWAP;
+	//vprintf(fmt, args); SWAP;
+	fflush(stdout); SWAP;
+	va_end(args); SWAP;
+}
+void mprintf(const char* fmt, ...) {
+	va_list args; SWAP;
+	va_start(args, fmt); SWAP;
+	//vprintf(fmt, args); SWAP;
 	fflush(stdout); SWAP;
 	va_end(args); SWAP;
 }
