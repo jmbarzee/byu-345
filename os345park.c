@@ -176,7 +176,7 @@ int jurassicTask(int argc, char* argv[])
 				}
 			}
 		}
-	} while (myPark.numExitedPark < NUM_VISITORS);
+	} while ((myPark.numExitedPark + myPark.numEaten) < NUM_VISITORS);
 
 	// park done
 	printf("\nJurassic Park is shutting down for the evening!!");	SWAP;
@@ -316,7 +316,7 @@ int jurassicDisplayTask(int argc, char* argv[])
 		semSignal(parkMutex);										SWAP;
 
 		// draw current park
-		drawPark(&currentPark);										SWAP;
+		//drawPark(&currentPark);										SWAP;
 
 		// signal for cars to move
 		semSignal(moveCars);										SWAP;
@@ -379,7 +379,7 @@ void drawPark(JPARK *park)
 
 	int i, j;
 	char svtime[64];						// ascii current time
-	char driver[] = {'T', 'z', 'A', 'B', 'C', 'D' };
+	char driver[] = {'G', 'R', 'T', 'z', 'A', 'B', 'C', 'D' };
 	char buf[32];
 	char pk[25][80];
 	static int cp[34][3] = {	{2, 29, 0}, {2, 33, 0}, {2, 37, 0}, {2, 41, 0},				// 0-6
@@ -481,7 +481,7 @@ void drawPark(JPARK *park)
 	// drivers
 	for (i=0; i<NUM_DRIVERS; i++)
 	{
-		pk[6+i][46] = driver[park->drivers[i] + 1];						SWAP;
+		pk[6+i][46] = driver[park->drivers[i] + 3];						SWAP;
 	}
 
 	// output cars
@@ -631,7 +631,8 @@ int lostVisitorTask(int argc, char* argv[])
 					myPark.numInCarLine +
 					myPark.numInCars +
 					myPark.numInGiftLine +
-					myPark.numInGiftShop;								SWAP;
+					myPark.numInGiftShop +
+					myPark.numEaten;								SWAP;
 
 		if (inPark != myPark.numInPark)
 		{
@@ -648,6 +649,7 @@ int lostVisitorTask(int argc, char* argv[])
 			printf("\n      numInCars=%d", myPark.numInCars);
 			printf("\n  numInGiftLine=%d", myPark.numInGiftLine);
 			printf("\n  numInGiftShop=%d", myPark.numInGiftShop);
+			printf("\n       numEaten=%d", myPark.numEaten);
 			printf("\n");
 
 			assert("Too few in Park!" && (inPark == myPark.numInPark));

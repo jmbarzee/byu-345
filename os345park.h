@@ -6,7 +6,7 @@
 #define NUM_DRIVERS		4
 
 #define NUM_SEATS		3
-#define NUM_VISITORS	(NUM_SEATS*15)
+#define NUM_VISITORS	(NUM_SEATS*2)
 
 #define MAX_IN_PARK		20
 #define MAX_TICKETS		(NUM_CARS*NUM_SEATS)
@@ -40,6 +40,7 @@ typedef struct jpark
 	int numInCars;				// # in tour cars
 	int numInGiftLine;			// # in gift shop line
 	int numInGiftShop;			// # in gift shop
+	int numEaten;				// # Eaten by motherfuckin di-no-sores
 	int drivers[NUM_DRIVERS];	// driver state (-1=T, 0=z, 1=A, 2=B, etc.)
 	CAR cars[NUM_CARS];			// cars in park
 } JPARK;
