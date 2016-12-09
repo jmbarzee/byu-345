@@ -21,6 +21,9 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <assert.h>
+#include <sys/time.h>
+#include <time.h>
+#include <math.h>
 
 #include "os345.h"
 #include "os345signals.h"
@@ -42,6 +45,11 @@ extern Semaphore* inBufferReady;		// input buffer ready semaphore
 extern bool diskMounted;				// disk has been mounted
 extern char dirPath[];					// directory path
 Command** commands;						// shell commands
+
+#define HIST_LEN 64
+char** lineHistory;
+int nextLine;
+int currentLine;
 
 
 // ***********************************************************************
@@ -77,6 +85,10 @@ int P1_shellTask(int argc, char* argv[])
 	// initialize shell commands
 	commands = P1_init();					// init shell commands
 
+	lineHistory = malloc(sizeof(char*)*HIST_LEN);
+	nextLine = 0;
+	currentLine = -1;
+
 
 	while (1)
 	{
@@ -88,7 +100,11 @@ int P1_shellTask(int argc, char* argv[])
 		if (!inBuffer[0]) continue;		// ignore blank lines
 		//printf("%s", inBuffer);
 
-		ParsedLine pline = parseArgs(inBuffer);
+		lineHistory[nextLine] = malloc(sizeof(char)*(strlen(inBuffer)+1));
+		strcpy(lineHistory[nextLine], inBuffer);
+		currentLine = nextLine++;
+
+		ParsedLine pline = parseArgs(lineHistory[currentLine]);
 		newArgc = pline.argc;
 		newArgv = pline.argv;
 		runInBack = pline.runInBackground;
@@ -159,6 +175,28 @@ int P1_project1(int argc, char* argv[])
 	return 0;
 } // end P1_project1
 
+int timePrint(int argc, char* argv[])
+{
+	  char buffer[26];
+	  int millisec;
+	  struct tm* tm_info;
+	  struct timeval tv;
+
+	  gettimeofday(&tv, NULL);
+
+	  millisec = lrint(tv.tv_usec/1000.0); // Round to nearest millisec
+	  if (millisec>=1000) { // Allow for rounding up to nearest second
+	    millisec -=1000;
+	    tv.tv_sec++;
+	  }
+
+	  tm_info = localtime(&tv.tv_sec);
+
+	  strftime(buffer, 26, "%Y:%m:%d %H:%M:%S", tm_info);
+	  printf("%s.%03d\n", buffer, millisec);
+
+	  return 0;
+} // end P1_args
 int P1_args(int argc, char* argv[])
 {
 	for (int i=0; i<argc; i++)
@@ -275,6 +313,7 @@ Command** P1_init()
 	commands[i++] = newCommand("help", "he", P1_help, "OS345 Help");
 	commands[i++] = newCommand("lc3", "lc3", P1_lc3, "Execute LC3 program");
 
+	commands[i++] = newCommand("time", "time", timePrint, "P1: ec time");
 	commands[i++] = newCommand("args", "a", P1_args, "Print given Args");
 	commands[i++] = newCommand("add", "ad", P1_add, "Add all Args");
 
@@ -307,6 +346,7 @@ Command** P1_init()
 
 	// P5: Scheduling
 	commands[i++] = newCommand("project5", "p5", P5_project5, "P5: Scheduling");
+	commands[i++] = newCommand("project5time", "p5t", P5_project5t, "P5: Scheduling With Time");
 
 	// P6: FAT
 	commands[i++] = newCommand("project6", "p6", P6_project6, "P6: FAT");

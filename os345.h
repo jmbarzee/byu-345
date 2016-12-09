@@ -84,6 +84,7 @@ typedef struct							// task control block
 	int state;							// task state
 	int priority;						// task priority (project 2)
 	int slices;							// task compute time allotment
+	int sliceMult;							// task compute time allotment
 	int argc;							// task argument count (project 1)
 	char** argv;						// task argument pointers (project 1)
 	int signal;							// task signals (project 1)
@@ -154,7 +155,7 @@ int semTryLock(Semaphore*);
 // ***********************************************************************
 // Command prototypes
 
-#define NUM_COMMANDS 51
+#define NUM_COMMANDS 53
 typedef struct								// command struct
 {
 	char* command;
@@ -198,6 +199,7 @@ int P4_crawler(int, char**);
 int P4_memtest(int, char**);
 
 int P5_project5(int, char**);
+int P5_project5t(int, char**);
 int P5_stress1(int, char**);
 int P5_stress2(int, char**);
 

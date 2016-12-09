@@ -38,6 +38,19 @@ extern Semaphore* semaphoreList;			// linked list of active semaphores
 extern Semaphore* taskSems[MAX_TASKS];		// task semaphore
 
 
+
+int createTimeTask(char* name,					// task name
+					int (*task)(int, char**),	// task address
+					int priority,				// task priority
+					int argc,					// task argument count
+					char* argv[],				// task argument pointers
+					int sliceMult) {
+	Tid tid = createTask(name, task, priority, argc, argv);
+	tcb[tid].sliceMult = sliceMult;
+	return tid;
+}
+
+
 // **********************************************************************
 // **********************************************************************
 // create task
@@ -84,6 +97,8 @@ int createTask(char* name,						// task name
 			tcb[tid].event = 0;				// suspend semaphore
 			tcb[tid].RPT = 0;					// root page table (project 5)
 			tcb[tid].cdir = CDIR;			// inherit parent cDir (project 6)
+			tcb[tid].sliceMult = tcb[getCurTask()].sliceMult;
+			tcb[tid].slices = 0;
 
 			// define task signals
 			createTaskSigHandlers(tid);
@@ -134,7 +149,7 @@ int dropSlice(Tid tid) {
 
 void setSlices(Tid tid, int newSlices) {
 	if (tid > -1)
-		tcb[tid].slices = newSlices;
+		tcb[tid].slices = newSlices * tcb[tid].sliceMult;
 }
 
 

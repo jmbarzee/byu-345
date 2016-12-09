@@ -35,6 +35,8 @@ void pollInterrupts(void);
 static void keyboard_isr(void);
 static void timer_isr(void);
 
+int arrowKeyBegan;
+
 // **********************************************************************
 // **********************************************************************
 // global semaphores
@@ -46,6 +48,10 @@ extern Semaphore* inBufferReady;			// input buffer ready semaphore
 extern Semaphore* tics10sec;				// 10 second semaphore
 extern Semaphore* tics1sec;					// 1 second semaphore
 extern Semaphore* tics10thsec;				// 1/10 second semaphore
+
+extern char** lineHistory;
+extern int nextLine;
+extern int currentLine;
 
 extern char inChar;				// last entered character
 extern int charFlag;				// 0 => buffered input
@@ -120,7 +126,7 @@ static void keyboard_isr() {
 			semSignal(inBufferReady);	// SEM_SIGNAL(inBufferReady)
 			break;
 		}
-		case 0x7f:						// ^x
+		case 0x7f:						// backspacke
 		{
 			if (inBufIndx > 0) {
 				printf("\b \b");
@@ -128,8 +134,61 @@ static void keyboard_isr() {
 			}
 			break;
 		}
+		case 0x1b:						// Arrow key first char
+		{
+			arrowKeyBegan = 1;
+			break;
+		}
+		case 0x5b:						// Arrow key second char
+		{
+			if (arrowKeyBegan == 1)
+				arrowKeyBegan = 2;
+			break;
+		}
+		case 'A':						// up
+		{
+			if (arrowKeyBegan == 2) {
+				if (currentLine > 0) {
+					strcpy(inBuffer, lineHistory[--currentLine]);
+					inBufIndx = strlen(inBuffer);
+					for (int i=0; i<50; i++)
+						printf(" ");
+					for (int i=0; i<100; i++)
+						printf("\b \b");
+					printf("%s", inBuffer);
+				}
+				arrowKeyBegan = 0;
+				break;
+			}
+		}
+		case 'B':						// down
+		{
+			if (arrowKeyBegan == 2) {
+				if (currentLine < nextLine-1) {
+					strcpy(inBuffer, lineHistory[++currentLine]);
+					inBufIndx = strlen(inBuffer);
+					for (int i=0; i<50; i++)
+						printf(" ");
+					for (int i=0; i<100; i++)
+						printf("\b \b");
+					printf("%s", inBuffer);
+				} else if (currentLine < nextLine) {
+					strcpy(inBuffer, "\n");
+					inBufIndx = 0;
+					for (int i=0; i<50; i++)
+						printf(" ");
+					for (int i=0; i<100; i++)
+						printf("\b \b");
+					printf("%s", inBuffer);
+				}
+				arrowKeyBegan = 0;
+				break;
+			}
+		}
 		default: {
+			arrowKeyBegan = 0;
 			if (inBufIndx < INBUF_SIZE - 1) {
+				//printf("\n  hex(%x)   char(%c)", inChar, inChar);
 				printf("%c", inChar);
 				inBuffer[inBufIndx++] = inChar;
 				inBuffer[inBufIndx] = 0;

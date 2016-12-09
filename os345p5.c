@@ -110,6 +110,72 @@ int P5_project5(int argc, char* argv[])		// project 5
 	return 0;
 } // end P5_project5
 
+// ***********************************************************************
+// ***********************************************************************
+// project5 command
+//
+//
+int P5_project5t(int argc, char* argv[])		// project 5
+{
+	int i;
+	char* new_argv[4];						// child arguments
+	char arg1[16];
+	char arg2[16];
+	char arg3[16];
+
+	static char* groupReportArgv[] = {"groupReport", "4"};
+
+	// check if just changing scheduler mode
+	if (argc > 1)
+	{
+		scheduler_mode = atoi(argv[1]);
+		printf("Scheduler Mode = %d (%s)\n", scheduler_mode, scheduler_mode ? "FSS" : "RR");
+		return 0;
+	}
+
+	printf("Starting Project 5\n");
+
+	for (i = 0; i < NUM_PARENTS; ++i)
+	{
+		num_siblings[i] = (rand() % 25) + 1;
+		printf("Group[%d] = %d\n", i, num_siblings[i]);
+	}
+
+	childALive = createSemaphore("childALive", BINARY, 0);
+	parentDead = createSemaphore("parentDead", BINARY, 0);
+
+	// create parents
+	for (i = 0; i < NUM_PARENTS; i++)
+	{
+		group_count[i] = 0;					// zero group counter
+
+		sprintf(arg1, "parent%d", i + 1);
+		sprintf(arg2, "%d", i + 1);
+//		sprintf(arg3, "%d", 1 + 4 * i);
+		sprintf(arg3, "%d", num_siblings[i]);
+		new_argv[0] = arg1;
+		new_argv[1] = arg2;
+		new_argv[2] = arg3;
+
+		printf("Create %s with %d child%s\n", arg1, atoi(arg3), (atoi(arg3) == 1 ? "" : "ren"));
+		createTimeTask(new_argv[0]				// task name
+				 , parentTask,				// parent task
+				   MED_PRIORITY,			// priority
+				   3,						// argc
+				   new_argv,				// argv
+				   i);
+		semWait(parentDead);				// wait for parent to die
+	}
+
+	// create reporting task
+	createTask("Group Report"	,			// task name
+				groupReportTask,			// task
+				MED_PRIORITY,				// task priority
+				2,							// task argc
+				groupReportArgv);			// task argument pointers
+	return 0;
+} // end P5_project5
+
 
 
 // ***********************************************************************

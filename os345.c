@@ -143,11 +143,12 @@ int main(int argc, char* argv[])
 	tics10thsec = createSemaphore("tics10thsec", BINARY, 0);
 
 	// schedule CLI task
-	createTask("myShell",			// task name
+	createTimeTask("myShell",			// task name
 					P1_shellTask,	// task
 					MED_PRIORITY,	// task priority
 					argc,			// task arg count
-					argv);			// task argument pointers
+					argv,			// task argument pointers
+					1);
 
 	// Scheduling loop
 	// 1. Check for asynchronous events (character inputs, timers, etc.)
